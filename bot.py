@@ -52,7 +52,6 @@ WELCOME_TEXT = """🌟 به UniVoice خوش اومدی!
 👇 فقط کافیه فرم رو پر کنی و بفرستی.
 """
 
-
 FORM_TEXT = """📝 لطفاً این فرم رو کپی کن، پرش کن و بفرست:
 
 👨‍🏫 استاد:
@@ -71,7 +70,6 @@ FORM_TEXT = """📝 لطفاً این فرم رو کپی کن، پرش کن و �
 ⭐ نمره از ۲۰:
 """
 
-
 # ---------- Commands ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(WELCOME_TEXT)
@@ -79,6 +77,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def receive_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # ✅ چک کردن که پیام واقعی و متنی باشه
+    if not update.message or not update.message.text:
+        return
+
     user = update.effective_user
     text = update.message.text
 
