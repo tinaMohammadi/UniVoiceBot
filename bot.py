@@ -1,274 +1,211 @@
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import json
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+)
 from telegram.ext import (
-    ApplicationBuilder, ContextTypes, CommandHandler,
-    MessageHandler, CallbackQueryHandler, ConversationHandler, filters
+    ApplicationBuilder,
+    ContextTypes,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    filters,
 )
 
-# ====== CONFIG ======
+# ================= CONFIG =================
 TOKEN = "8558196271:AAGd0nkuogmvrF9lWSyjzjsIEV2sZkt3F3w"
 ADMIN_ID = 7997819976
 CHANNEL_USERNAME = "@UniVoiceHub"
 
+DATA_FILE = "data.json"
+
+# ==========================================
+
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# ====== STATES ======
-(
-    TEACHER, COURSE, TEACHING_STYLE, ETHICS, NOTES, PROJECT,
-    ATTENDANCE, MIDTERM, FINAL, MATCHING, CONTACT, SUMMARY,
-    TERM, SCORE
-) = range(14)
+# ---------- Storage ----------
+def load_data():
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except:
+        return {"posts": {}, "votes": {}}
 
-pending_posts = {}
-post_votes = {}
-user_votes = {}
-post_counter = 1
 
-WELCOME_TEXT = (
-    "🎓 سلام به UniVoice!\n\n"
-    "اینجا جاییه که می‌تونی بدون استرس و با خیال راحت تجربه‌ت درباره استاد یا درس‌هات رو ثبت کنی 💬✨\n\n"
-    "فرم کوتاهی جلوت میاد — پرش کن و بفرست.\n"
-    "بعد از بررسی، نظرت تو کانال منتشر می‌شه 💙\n\n"
-    "آماده‌ای؟ بزن بریم 🚀"
-)
+def save_data(data):
+    with open(DATA_FILE, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ====== START ======
+
+db = load_data()
+
+
+# ---------- Texts ----------
+WELCOME_TEXT = """🌟 به UniVoice خوش اومدی!
+
+اینجا جاییه که می‌تونی تجربه‌ات با استادها و درس‌ها رو بدون سانسور ولی محترمانه به اشتراک بذاری ✨  
+نظرت بعد از بررسی منتشر می‌شه تا بقیه هم استفاده کنن.
+
+👇 فقط کافیه فرم رو پر کنی و بفرستی.
+"""
+
+
+FORM_TEXT = """📝 لطفاً این فرم رو کپی کن، پرش کن و بفرست:
+
+👨‍🏫 استاد:
+📚 درس:
+🎓 نوع تدریس:
+💬 خصوصیات اخلاقی:
+📄 جزوه:
+🧪 پروژه:
+🕒 حضور و غیاب:
+📝 میان‌ترم:
+📘 پایان‌ترم:
+📊 میزان تطبیق سوالات با جزوه (از ۵):
+📞 راه ارتباطی:
+🧠 نتیجه‌گیری:
+📅 ترمی که با استاد داشتی:
+⭐ نمره از ۲۰:
+"""
+
+
+# ---------- Commands ----------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(WELCOME_TEXT)
-    await update.message.reply_text("👨‍🏫 نام استاد رو بنویس:")
-    return TEACHER
+    await update.message.reply_text(FORM_TEXT)
 
 
-# ====== FORM STEPS ======
-async def teacher(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["teacher"] = update.message.text
-    await update.message.reply_text("📘 نام درس رو بنویس:")
-    return COURSE
+async def receive_review(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    text = update.message.text
 
-async def course(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["course"] = update.message.text
-    await update.message.reply_text("🎤 نوع تدریس استاد چطور بود؟")
-    return TEACHING_STYLE
-
-async def teaching_style(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["teaching_style"] = update.message.text
-    await update.message.reply_text("😊 خصوصیات اخلاقی استاد؟")
-    return ETHICS
-
-async def ethics(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["ethics"] = update.message.text
-    await update.message.reply_text("📄 جزوه‌ها چطور بودن؟")
-    return NOTES
-
-async def notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["notes"] = update.message.text
-    await update.message.reply_text("🛠 پروژه داشت؟ اگر بله توضیح بده:")
-    return PROJECT
-
-async def project(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["project"] = update.message.text
-    await update.message.reply_text("📋 حضور و غیاب چطور بود؟")
-    return ATTENDANCE
-
-async def attendance(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["attendance"] = update.message.text
-    await update.message.reply_text("📝 میان‌ترم چطور بود؟")
-    return MIDTERM
-
-async def midterm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["midterm"] = update.message.text
-    await update.message.reply_text("📚 پایان‌ترم چطور بود؟")
-    return FINAL
-
-async def final(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["final"] = update.message.text
-    await update.message.reply_text("📊 میزان تطبیق سوالات با جزوه از ۵؟ (عدد بنویس)")
-    return MATCHING
-
-async def matching(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["matching"] = update.message.text
-    await update.message.reply_text("📞 راه ارتباطی با استاد؟")
-    return CONTACT
-
-async def contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["contact"] = update.message.text
-    await update.message.reply_text("🧠 نتیجه‌گیری کلی؟")
-    return SUMMARY
-
-async def summary(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["summary"] = update.message.text
-    await update.message.reply_text("📅 ترمی که این استاد داشتی؟")
-    return TERM
-
-async def term(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["term"] = update.message.text
-    await update.message.reply_text("⭐ نمره کلی از ۲۰؟ (عدد بنویس)")
-    return SCORE
-
-async def score(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    global post_counter
-    context.user_data["score"] = update.message.text
-
-    text = (
-        f"👨‍🏫 استاد: {context.user_data['teacher']}\n"
-        f"📘 درس: {context.user_data['course']}\n"
-        f"🎤 نوع تدریس: {context.user_data['teaching_style']}\n"
-        f"😊 خصوصیات اخلاقی: {context.user_data['ethics']}\n"
-        f"📄 جزوه: {context.user_data['notes']}\n"
-        f"🛠 پروژه: {context.user_data['project']}\n"
-        f"📋 حضور غیاب: {context.user_data['attendance']}\n"
-        f"📝 میان‌ترم: {context.user_data['midterm']}\n"
-        f"📚 پایان‌ترم: {context.user_data['final']}\n"
-        f"📊 تطبیق با جزوه (از ۵): {context.user_data['matching']}\n"
-        f"📞 راه ارتباطی: {context.user_data['contact']}\n"
-        f"🧠 نتیجه‌گیری: {context.user_data['summary']}\n"
-        f"📅 ترم: {context.user_data['term']}\n"
-        f"⭐ نمره نهایی (از ۲۰): {context.user_data['score']}\n"
-    )
-
-    post_id = post_counter
-    post_counter += 1
-    pending_posts[post_id] = {
-        "text": text,
-        "user_id": update.effective_user.id
-    }
-
-    keyboard = InlineKeyboardMarkup([
+    admin_keyboard = InlineKeyboardMarkup([
         [
-            InlineKeyboardButton("✅ تأیید", callback_data=f"approve_{post_id}"),
-            InlineKeyboardButton("❌ رد", callback_data=f"reject_{post_id}")
+            InlineKeyboardButton("✅ تایید", callback_data="approve"),
+            InlineKeyboardButton("❌ رد", callback_data="reject"),
         ]
     ])
 
-    await context.bot.send_message(
+    msg = await context.bot.send_message(
         chat_id=ADMIN_ID,
-        text="📥 نظر جدید برای بررسی:\n\n" + text,
-        reply_markup=keyboard
+        text=f"📩 نظر جدید از @{user.username or user.first_name}:\n\n{text}",
+        reply_markup=admin_keyboard,
     )
 
-    await update.message.reply_text("📨 نظرت ثبت شد! بعد از بررسی نتیجه برات ارسال می‌شه 💙")
-    return ConversationHandler.END
+    db["posts"][str(msg.message_id)] = {
+        "user_id": user.id,
+        "text": text,
+        "status": "pending",
+    }
+    save_data(db)
+
+    await update.message.reply_text("🌈 نظرت ثبت شد و بعد از بررسی منتشر می‌شه. ممنون از مشارکتت 💙")
 
 
-# ====== CALLBACK BUTTONS ======
-async def admin_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ---------- Admin Actions ----------
+async def handle_admin_action(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    data = query.data
+    message_id = str(query.message.message_id)
+    post = db["posts"].get(message_id)
+    if not post:
+        return
 
-    if data.startswith("approve_"):
-        post_id = int(data.split("_")[1])
-        post = pending_posts.pop(post_id, None)
-        if not post:
-            return
-
-        post_votes[post_id] = {"like": 0, "dislike": 0}
-        user_votes[post_id] = set()
-
-        keyboard = InlineKeyboardMarkup([
+    if query.data == "approve":
+        buttons = InlineKeyboardMarkup([
             [
-                InlineKeyboardButton("👍 0", callback_data=f"like_{post_id}"),
-                InlineKeyboardButton("👎 0", callback_data=f"dislike_{post_id}")
+                InlineKeyboardButton("👍 لایک", callback_data="like"),
+                InlineKeyboardButton("👎 دیسلایک", callback_data="dislike"),
             ],
             [
-                InlineKeyboardButton("💬 ثبت کامنت", callback_data=f"comment_{post_id}"),
-                InlineKeyboardButton("🚩 گزارش", callback_data=f"report_{post_id}")
+                InlineKeyboardButton("💬 ثبت کامنت", callback_data="comment"),
+                InlineKeyboardButton("🚩 گزارش", callback_data="report"),
             ],
             [
-                InlineKeyboardButton("💌 چت خصوصی", url=f"tg://user?id={post['user_id']}"),
-                InlineKeyboardButton("🎲 ثبت استاد شانسی", callback_data="random")
-            ]
+                InlineKeyboardButton("💌 چت خصوصی", callback_data="chat"),
+                InlineKeyboardButton("🎲 ثبت استاد شانسی", callback_data="random"),
+            ],
         ])
 
-        await context.bot.send_message(
+        sent = await context.bot.send_message(
             chat_id=CHANNEL_USERNAME,
-            text=post["text"],
-            reply_markup=keyboard
+            text=f"📢 نظر دانشجو:\n\n{post['text']}",
+            reply_markup=buttons,
         )
+
+        post["status"] = "approved"
+        post["channel_msg_id"] = sent.message_id
+        save_data(db)
 
         await context.bot.send_message(
             chat_id=post["user_id"],
-            text="✅ نظرت تأیید شد و در کانال منتشر شد 💙 ممنون از مشارکتت!"
+            text="✅ پیام شما تایید شد و در کانال منتشر گردید 🌟",
         )
 
-    elif data.startswith("reject_"):
-        post_id = int(data.split("_")[1])
-        post = pending_posts.pop(post_id, None)
-        if not post:
-            return
+        await query.edit_message_text("✅ تایید شد و ارسال گردید.")
 
+    elif query.data == "reject":
         await context.bot.send_message(
             chat_id=post["user_id"],
-            text="❌ متأسفانه نظرت تأیید نشد. می‌تونی دوباره ارسال کنی 🌱"
+            text="❌ متأسفانه پیام شما تایید نشد. اگر دوست داشتی می‌تونی دوباره ارسال کنی 💬",
         )
-
-    elif data.startswith("like_") or data.startswith("dislike_"):
-        action, post_id = data.split("_")
-        post_id = int(post_id)
-
-        if update.effective_user.id in user_votes.get(post_id, set()):
-            await query.answer("❗ فقط یک‌بار می‌تونی رأی بدی", show_alert=True)
-            return
-
-        user_votes[post_id].add(update.effective_user.id)
-        post_votes[post_id][action] += 1
-
-        counts = post_votes[post_id]
-        keyboard = InlineKeyboardMarkup([
-            [
-                InlineKeyboardButton(f"👍 {counts['like']}", callback_data=f"like_{post_id}"),
-                InlineKeyboardButton(f"👎 {counts['dislike']}", callback_data=f"dislike_{post_id}")
-            ],
-            [
-                InlineKeyboardButton("💬 ثبت کامنت", callback_data=f"comment_{post_id}"),
-                InlineKeyboardButton("🚩 گزارش", callback_data=f"report_{post_id}")
-            ],
-            [
-                InlineKeyboardButton("💌 چت خصوصی", callback_data="noop"),
-                InlineKeyboardButton("🎲 ثبت استاد شانسی", callback_data="random")
-            ]
-        ])
-
-        await query.edit_message_reply_markup(reply_markup=keyboard)
-
-    elif data.startswith("comment_"):
-        await query.answer("💬 این بخش به‌زودی فعال می‌شه!", show_alert=True)
-
-    elif data.startswith("report_"):
-        await query.answer("🚩 گزارش ثبت شد — بررسی می‌کنیم.", show_alert=True)
-
-    elif data == "random":
-        await query.answer("🎲 استاد شانسی بعداً فعال می‌شه 😄", show_alert=True)
+        post["status"] = "rejected"
+        save_data(db)
+        await query.edit_message_text("❌ رد شد.")
 
 
-# ====== MAIN ======
+# ---------- Voting ----------
+async def handle_vote(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    user_id = query.from_user.id
+    key = f"{query.message.message_id}_{user_id}"
+
+    if key in db["votes"]:
+        await query.answer("❗ قبلاً رأی دادی", show_alert=True)
+        return
+
+    db["votes"][key] = query.data
+    save_data(db)
+
+    counts = {"like": 0, "dislike": 0}
+    for v in db["votes"].values():
+        if v == "like":
+            counts["like"] += 1
+        elif v == "dislike":
+            counts["dislike"] += 1
+
+    buttons = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(f"👍 {counts['like']}", callback_data="like"),
+            InlineKeyboardButton(f"👎 {counts['dislike']}", callback_data="dislike"),
+        ],
+        [
+            InlineKeyboardButton("💬 ثبت کامنت", callback_data="comment"),
+            InlineKeyboardButton("🚩 گزارش", callback_data="report"),
+        ],
+        [
+            InlineKeyboardButton("💌 چت خصوصی", callback_data="chat"),
+            InlineKeyboardButton("🎲 ثبت استاد شانسی", callback_data="random"),
+        ],
+    ])
+
+    await query.edit_message_reply_markup(reply_markup=buttons)
+
+
+# ---------- Main ----------
 def main():
     app = ApplicationBuilder().token(TOKEN).build()
 
-    conv = ConversationHandler(
-        entry_points=[CommandHandler("start", start)],
-        states={
-            TEACHER: [MessageHandler(filters.TEXT & ~filters.COMMAND, teacher)],
-            COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, course)],
-            TEACHING_STYLE: [MessageHandler(filters.TEXT & ~filters.COMMAND, teaching_style)],
-            ETHICS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ethics)],
-            NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, notes)],
-            PROJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, project)],
-            ATTENDANCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, attendance)],
-            MIDTERM: [MessageHandler(filters.TEXT & ~filters.COMMAND, midterm)],
-            FINAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, final)],
-            MATCHING: [MessageHandler(filters.TEXT & ~filters.COMMAND, matching)],
-            CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, contact)],
-            SUMMARY: [MessageHandler(filters.TEXT & ~filters.COMMAND, summary)],
-            TERM: [MessageHandler(filters.TEXT & ~filters.COMMAND, term)],
-            SCORE: [MessageHandler(filters.TEXT & ~filters.COMMAND, score)],
-        },
-        fallbacks=[]
-    )
-
-    app.add_handler(conv)
-    app.add_handler(CallbackQueryHandler(admin_actions))
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_review))
+    app.add_handler(CallbackQueryHandler(handle_admin_action, pattern="^(approve|reject)$"))
+    app.add_handler(CallbackQueryHandler(handle_vote, pattern="^(like|dislike)$"))
 
     print("🤖 Bot is running...")
     app.run_polling()
