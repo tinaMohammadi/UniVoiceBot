@@ -210,7 +210,11 @@ def main():
     app.add_handler(CallbackQueryHandler(handle_vote, pattern="^(like|dislike)$"))
 
     print("🤖 Bot is running...")
-    app.run_polling()
+    import os
+PORT = int(os.environ.get("PORT", 5000))
+print(f"🤖 Bot is running on port {PORT}...")
+app.run_polling()
+
 
 
 if __name__ == "__main__":
