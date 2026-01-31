@@ -12,7 +12,8 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-TOKEN = os.getenv("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk")  # روی Render ست کن
+TOKEN = os.getenv("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk")  # باید در Render ست شود
+SELF_URL = os.getenv("SELF_URL")  # URL سرویس Render
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
 BOT_USERNAME = "UniEchoFeedbackBot"
@@ -36,17 +37,16 @@ threading.Thread(target=run_web, daemon=True).start()
 
 # ================= SELF-PING =================
 def self_ping():
-    url = os.environ.get("SELF_URL")  # URL رندر خودت رو ست کن
-    if not url:
+    if not SELF_URL:
         print("⚠️ SELF_URL ست نشده. Self-ping غیرفعال شد.")
         return
     while True:
         try:
-            requests.get(url)
+            requests.get(SELF_URL)
             print("🔁 Pinged self to stay awake.")
         except Exception as e:
             print("❌ Ping failed:", e)
-        time.sleep(120)  # هر ۲ دقیقه
+        time.sleep(120)  # هر ۲ دقیقه یکبار
 
 threading.Thread(target=self_ping, daemon=True).start()
 
