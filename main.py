@@ -1,6 +1,8 @@
 import os
 import logging
 import threading
+import time
+import requests
 from flask import Flask
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -10,7 +12,7 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-TOKEN = os.getenv("BOT_TOKEN")   # توکن فقط از متغیر محیطی
+TOKEN = os.getenv("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk")  # باید روی Render به عنوان متغیر محیطی اضافه شود
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
 BOT_USERNAME = "UniEchoFeedbackBot"
@@ -30,6 +32,19 @@ def run_web():
     web_app.run(host="0.0.0.0", port=10000)
 
 threading.Thread(target=run_web, daemon=True).start()
+
+# ================= SELF-PING =================
+def self_ping():
+    url = "http://localhost:10000/"
+    while True:
+        try:
+            requests.get(url)
+            print("🔁 Pinged self to stay awake.")
+        except Exception as e:
+            print("❌ Ping failed:", e)
+        time.sleep(120)  # هر ۲ دقیقه یک بار
+
+threading.Thread(target=self_ping, daemon=True).start()
 
 # ================= STATES =================
 (ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
@@ -59,15 +74,12 @@ post_reactions = {}
 
 def reaction_keyboard(msg_id):
     data = post_reactions.get(msg_id, {"likes": set(), "dislikes": set()})
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton(f"👍 {len(data['likes'])}", callback_data=f"like:{msg_id}"),
-            InlineKeyboardButton(f"👎 {len(data['dislikes'])}", callback_data=f"dislike:{msg_id}")
-        ],
-        [
-            InlineKeyboardButton("📝 ثبت نظر", url=f"https://t.me/{BOT_USERNAME}?start=form")
-        ]
-    ])
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton(f"👍 {len(data['likes'])}", callback_data=f"like:{msg_id}"),
+        InlineKeyboardButton(f"👎 {len(data['dislikes'])}", callback_data=f"dislike:{msg_id}")
+    ], [
+        InlineKeyboardButton("📝 ثبت نظر", url=f"https://t.me/{BOT_USERNAME}?start=form")
+    ]])
 
 # ================= FORMAT FORM =================
 def build_form_text(data):
@@ -75,7 +87,6 @@ def build_form_text(data):
     for title, key in FORM_QUESTIONS:
         value = data.get(key, "-")
         lines.append(f"*{title}:*\n{value}\n")
-
     lines.append("──────────────")
     lines.append("👍 *موافق این نظر هستم*")
     lines.append("👎 *مخالف این نظر هستم*")
@@ -107,7 +118,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await q.answer()
         await q.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-# ================= FORM =================
+# ================= FORM HANDLERS =================
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.callback_query:
         q = update.callback_query
@@ -203,9 +214,7 @@ async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
-
     summary = build_form_text(context.user_data)
-
     keyboard = [
         [InlineKeyboardButton("✅ قبول", callback_data=f"admin_accept:{q.from_user.id}"),
          InlineKeyboardButton("❌ رد", callback_data=f"admin_reject:{q.from_user.id}")]
@@ -220,23 +229,18 @@ async def admin_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     data = q.data
-
     if data.startswith("admin_accept:"):
         user_id = int(data.split(":")[1])
         summary = q.message.text
-
         msg = await context.bot.send_message(
             chat_id=CHANNEL_ID,
             text=summary,
             parse_mode="Markdown"
         )
-
         post_reactions[msg.message_id] = {"likes": set(), "dislikes": set()}
         await msg.edit_reply_markup(reply_markup=reaction_keyboard(msg.message_id))
-
         await context.bot.send_message(chat_id=user_id, text="✅ فرم شما توسط ادمین تایید شد و در کانال منتشر شد 🙌")
         await q.message.edit_text("✅ فرم تایید و ارسال شد به کانال.")
-
     elif data.startswith("admin_reject:"):
         user_id = int(data.split(":")[1])
         await context.bot.send_message(chat_id=user_id, text="❌ فرم شما توسط ادمین رد شد.")
@@ -250,16 +254,13 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     action, msg_id = data.split(":")
     msg_id = int(msg_id)
     user_id = q.from_user.id
-
     reactions = post_reactions.setdefault(msg_id, {"likes": set(), "dislikes": set()})
-
     if action == "like":
         reactions["dislikes"].discard(user_id)
         reactions["likes"].add(user_id)
     elif action == "dislike":
         reactions["likes"].discard(user_id)
         reactions["dislikes"].add(user_id)
-
     await q.message.edit_reply_markup(reply_markup=reaction_keyboard(msg_id))
 
 # ================= DELETE =================
@@ -312,16 +313,6 @@ async def admin_receive_reply(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.reply_text("✅ پیام شما برای کاربر ارسال شد.")
         del reply_sessions[admin_id]
 
-async def user_show_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    msg = q.data.split("user_show_msg:", 1)[1]
-    keyboard = [
-        [InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start")],
-        [InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]
-    ]
-    await q.message.edit_text(f"📩 پیام ادمین:\n\n{msg}", reply_markup=InlineKeyboardMarkup(keyboard))
-
 async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
@@ -366,7 +357,6 @@ def main():
 
     app.add_handler(CallbackQueryHandler(anon_start, pattern="^anon_start$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
-    app.add_handler(CallbackQueryHandler(user_show_msg, pattern="^user_show_msg:"))
     app.add_handler(CallbackQueryHandler(end_chat, pattern="^end_chat$"))
 
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.User(ADMIN_ID), receive_anon))
@@ -377,4 +367,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
