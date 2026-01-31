@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-TOKEN = os.getenv("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk")  # باید در Render ست شود
+TOKEN = os.getenv("BOT_TOKEN")  # باید در Render ست شود
 SELF_URL = os.getenv("SELF_URL")  # URL سرویس Render
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
