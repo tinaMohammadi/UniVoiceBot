@@ -1,25 +1,22 @@
 import os
-import logging
 import threading
 from flask import Flask
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
-    ConversationHandler, filters, ContextTypes
+    ConversationHandler, ContextTypes, filters
 )
 
 # ================= CONFIG =================
-TOKEN = os.getenv("BOT_TOKEN")   # توکن فقط از متغیر محیطی
+TOKEN = os.getenv("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk")
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
 BOT_USERNAME = "UniEchoFeedbackBot"
 CHANNEL_DIRECT_LINK = "https://t.me/UniVoiceHub?direct"
 CHANNEL_TAG = "@UniVoiceHub"
 
-logging.basicConfig(level=logging.INFO)
-
-# ================= KEEP ALIVE SERVER (Render Free) =================
+# ================= FLASK KEEP ALIVE =================
 web_app = Flask(__name__)
 
 @web_app.route("/")
@@ -28,8 +25,6 @@ def home():
 
 def run_web():
     web_app.run(host="0.0.0.0", port=10000)
-
-threading.Thread(target=run_web, daemon=True).start()
 
 # ================= STATES =================
 (ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
@@ -376,4 +371,6 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
+    threading.Thread(target=run_web).start()
     main()
+
