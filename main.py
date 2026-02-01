@@ -242,11 +242,15 @@ async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ================= MAIN =================
 def main():
+    # راه‌اندازی سرور برای زنده نگه داشتن ربات
     threading.Thread(target=run_web, daemon=True).start()
-    threading.Thread(target=self_ping, daemon=True).start()
+    if 'self_ping' in globals():
+        threading.Thread(target=self_ping, daemon=True).start()
 
     app = Application.builder().token(TOKEN).build()
 
+    # --- تعریف هندلرهای چت ناشناس و نظرسنجی (این‌ها باید قبل از بقیه باشند) ---
+    
     # ۱. هندلر چت ناشناس
     anon_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
@@ -254,10 +258,10 @@ def main():
             ANON_GET_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, anon_receive_msg)],
             ANON_CONFIRM_SEND: [CallbackQueryHandler(anon_final_send, pattern="^anon_confirm_send$")]
         },
-        fallbacks=[CallbackQueryHandler(start, pattern="^start$")]
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)]
     )
 
-    # ۲. هندلر فرم نظرسنجی
+    # ۲. هندلر فرم نظرسنجی استاد
     form_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
         states={
@@ -276,24 +280,38 @@ def main():
             ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
-        fallbacks=[CommandHandler("start", start), CallbackQueryHandler(start, pattern="^start$")]
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)]
     )
 
+    # --- افزودن هندلرها به اپلیکیشن به ترتیب اولویت ---
+
+    # اولویت ۱: دستور استارت اصلی
     app.add_handler(CommandHandler("start", start))
+
+    # اولویت ۲: سیستم‌های گفت‌وگو (نظرسنجی، چت و ثبت گروه)
     app.add_handler(anon_conv)
     app.add_handler(form_conv)
     
-    # ۳. هندلر ثبت گروه (اگر فایل موجود باشد)
-    if group_conv:
+    # ایمپورت و اضافه کردن هندلر ثبت گروه از فایل group_reg.py
+    try:
+        from group_reg import group_conv, admin_group_decision
         app.add_handler(group_conv)
+        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^g_approve:|^g_reject:"))
+    except ImportError:
+        print("⚠️ فایل group_reg.py پیدا نشد!")
 
+    # اولویت ۳: دکمه‌های کنترلی ادمین و دکمه‌های بازگشت
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
     app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
+
+    # اولویت ۴ (آخرین اولویت): پیام‌های متنی آزاد
+    # این هندلر فقط زمانی اجرا می‌شود که کاربر در هیچ‌کدام از وضعیت‌های بالا نباشد
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
-    print("🚀 Bot is live and optimized...")
+    print("🚀 Bot is live with CORRECT handler priority...")
     app.run_polling(drop_pending_updates=True)
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
