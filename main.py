@@ -17,7 +17,7 @@ except ImportError:
     group_conv = None
 
 # ================= CONFIG =================
-TOKEN = "8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk"
+TOKEN = "8558196271:AAGsm4xqHnFeT7avPKcOVJvcy5pWrq5ZlN0"
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
 CHANNEL_TAG = "@UniVoiceHub"
