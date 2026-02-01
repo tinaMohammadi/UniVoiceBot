@@ -7,7 +7,7 @@ from telegram.ext import (
 
 # ================= CONFIG (تنظیمات اختصاصی کانال گروه‌ها) =================
 # آیدی کانالی که گروه‌ها باید در آن منتشر شوند را اینجا وارد کن
-GROUP_CHANNEL_ID = "@Your_Groups_Channel_ID" 
+GROUP_CHANNEL_ID = "@classLink_online" 
 ADMIN_ID = 7997819976
 
 # ================= STATES =================
