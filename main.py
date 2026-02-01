@@ -239,20 +239,21 @@ async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await context.bot.send_message(chat_id=user_id, text="❌ فرم شما تایید نشد.")
     await q.message.delete()
-# ================= MAIN =================
+import threading
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    Application, CommandHandler, CallbackQueryHandler, 
+    MessageHandler, filters, ConversationHandler
+)
+
+# --- ایمپورت توابع و متغیرهای ثابت (مطمئن شو این‌ها در فایل اصلی تعریف شده‌اند) ---
+# از آنجایی که کد کامل بقیه بخش‌ها را نداشتم، فرض بر این است که این توابع در همین فایل یا ایمپورت شده‌اند.
+
 def main():
-    # راه‌اندازی سرور برای زنده نگه داشتن ربات
-    if 'run_web' in globals():
-        threading.Thread(target=run_web, daemon=True).start()
-    if 'self_ping' in globals():
-        threading.Thread(target=self_ping, daemon=True).start()
-
     # ساخت اپلیکیشن ربات
-    app = Application.builder().token(TOKEN).build()
+    app = Application.builder().token("YOUR_TOKEN_HERE").build()
 
-    # ۱. تعریف متغیرهای Conversation (بسیار مهم: اول تعریف، بعد استفاده)
-    
-    # الف) سیستم چت ناشناس
+    # --- ۱. تعریف ConversationHandler برای چت ناشناس ---
     anon_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
         states={
@@ -260,10 +261,11 @@ def main():
             ANON_CONFIRM_SEND: [CallbackQueryHandler(anon_final_send, pattern="^anon_confirm_send$")]
         },
         fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)],
+        per_chat=True,
         per_message=False
     )
 
-    # ب) سیستم فرم نظرسنجی اساتید
+    # --- ۲. تعریف ConversationHandler برای فرم نظرسنجی ---
     form_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
         states={
@@ -283,37 +285,45 @@ def main():
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
         fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)],
+        per_chat=True,
         per_message=False
     )
 
-    # ۲. اضافه کردن هندلرها به ترتیب اولویت صحیح
-    
-    # اولویت ۱: دستور استارت
+    # --- ۳. اضافه کردن هندلرها به ترتیب اولویت (بسیار مهم) ---
+
+    # اولویت ۱: دستور /start (همیشه بالاترین اولویت برای بازنشانی)
     app.add_handler(CommandHandler("start", start))
 
-    # اولویت ۲: مدیریت گروه‌ها (Import از فایل دیگر)
+    # اولویت ۲: سیستم ثبت گروه (ایمپورت از فایل دیگر)
     try:
         from group_reg import group_conv, admin_group_decision
+        # ثبت گروه باید قبل از دکمه‌های عمومی باشد تا دکمه g_add کار کند
         app.add_handler(group_conv)
+        # هندلر دکمه‌های ادمین که شامل ":" هستند
         app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
     except ImportError:
         print("❌ خطا: فایل group_reg.py یافت نشد!")
 
-    # اولویت ۳: اضافه کردن سایر گفتگوها (که در بالا تعریف کردیم)
+    # اولویت ۳: اضافه کردن سایر گفتگوها (ناشناس و نظرسنجی)
     app.add_handler(anon_conv_handler)
     app.add_handler(form_conv_handler)
 
-    # اولویت ۴: سایر دکمه‌های عملیاتی
+    # اولویت ۴: دکمه‌های عمومی و بازگشت (اگر دکمه‌ای در فرم‌ها نبود، اینجا شکار می‌شود)
+    app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
-    app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
 
-    # اولویت ۵: پیام‌های متنی آزاد
+    # اولویت ۵: پیام‌های متنی آزاد (کمترین اولویت)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
-    # شروع به کار ربات
-    print("🚀 Bot is live and fixed...")
+    # --- ۴. اجرای ربات ---
+    print("🚀 Bot is running with prioritized handlers...")
+    
+    # راه‌اندازی سرور برای زنده نگه داشتن (در صورت وجود)
+    if 'run_web' in globals():
+        threading.Thread(target=run_web, daemon=True).start()
+
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
