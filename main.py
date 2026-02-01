@@ -1,29 +1,40 @@
-import os
-import logging
-import threading
-import time
-import requests
-from flask import Flask
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, CallbackQueryHandler, MessageHandler,
     ConversationHandler, filters, ContextTypes
 )
 
-# ایمپورت کردن از فایل ثبت گروه
-try:
-    from group_reg import group_conv, admin_group_decision
-except ImportError:
-    group_conv = None
-
 # ================= CONFIG =================
 TOKEN = "8558196271:AAGsm4xqHnFeT7avPKcOVJvcy5pWrq5ZlN0"
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
-CHANNEL_TAG = "@UniVoiceHub"
+BOT_USERNAME = "UniEchoFeedbackBot"   # یوزرنیم رباتت بدون @
 CHANNEL_DIRECT_LINK = "https://t.me/UniVoiceHub?direct"
+CHANNEL_TAG = "@UniVoiceHub"
 
-logging.basicConfig(level=logging.INFO)
+# ================= STATES =================
+(ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
+ ASK_PROJECT, ASK_ATTEND, ASK_MIDTERM, ASK_FINAL, ASK_MATCH,
+ ASK_CONTACT, ASK_CONCLUSION, ASK_SEMESTER, ASK_GRADE) = range(14)
+
+# ================= FORM QUESTIONS =================
+FORM_QUESTIONS = [
+    ("👨‍🏫 استاد", "استاد"),
+    ("📚 درس", "درس"),
+    ("🎓 نوع تدریس", "نوع تدریس"),
+    ("💬 خصوصیات اخلاقی", "خصوصیات اخلاقی"),
+    ("📄 جزوه", "جزوه"),
+    ("🧪 پروژه", "پروژه"),
+    ("🕒 حضور و غیاب", "حضور و غیاب"),
+    ("📝 میان‌ترم", "میان‌ترم"),
+    ("📘 پایان‌ترم", "پایان‌ترم"),
+    ("📊 میزان تطبیق سوالات با جزوه", "تطبیق سوالات"),
+    ("📞 راه ارتباطی", "راه ارتباطی"),
+    ("📌 نتیجه‌گیری", "نتیجه‌گیری"),
+    ("📅 ترمی که با استاد داشتی", "ترم"),
+    ("⭐️ نمره از ۲۰", "نمره"),
+]
 
 # ================= LIKE SYSTEM =================
 post_reactions = {}  # message_id -> {"likes": set(), "dislikes": set()}
@@ -53,39 +64,16 @@ def build_form_text(data):
     lines.append("\n⚠️ *مهم: قبل از تصمیم‌گیری بخوانید*")
     lines.append(f"\n🆔 {CHANNEL_TAG}")
     return "\n".join(lines)
-# ================= STATES =================
-# استفاده از اعداد بزرگ برای فرم نظرسنجی جهت جلوگیری از تداخل با group_reg
-(ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
- ASK_PROJECT, ASK_ATTEND, ASK_MIDTERM, ASK_FINAL, ASK_MATCH,
- ASK_CONTACT, ASK_CONCLUSION, ASK_SEMESTER, ASK_GRADE) = range(100, 114)
 
-(ANON_GET_MSG, ANON_CONFIRM_SEND) = range(200, 202)
-
-# ================= HELPERS =================
-def main_menu():
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📝 ثبت نظر درباره استاد", callback_data="start_form")],
-        [InlineKeyboardButton("💬 چت خصوصی ادمین", url=CHANNEL_DIRECT_LINK)],
-        [InlineKeyboardButton("👥 ثبت گروه کلاسی ❤️", callback_data="start_group_reg")],
-        [InlineKeyboardButton("🕵️ چت ناشناس با ادمین", callback_data="anon_start")]
-    ])
-
-def build_form_text(data):
-    questions = [
-        ("👨‍🏫 استاد", "استاد"), ("📚 درس", "درس"), ("🎓 نوع تدریس", "نوع تدریس"),
-        ("💬 خصوصیات اخلاقی", "خصوصیات اخلاقی"), ("📄 جزوه", "جزوه"), ("🧪 پروژه", "پروژه"),
-        ("🕒 حضور و غیاب", "حضور و غیاب"), ("📝 میان‌ترم", "میان‌ترم"), ("📘 پایان‌ترم", "پایان‌ترم"),
-        ("📊 میزان تطبیق", "تطبیق سوالات"), ("📞 راه ارتباطی", "راه ارتباطی"),
-        ("📌 نتیجه‌گیری", "نتیجه‌گیری"), ("📅 ترم", "ترم"), ("⭐ نمره", "نمره"),
-    ]
-    lines = [f"*{q[0]}:*\n{data.get(q[1], '-')}\n" for q in questions]
-    lines.append(f"──────────────\n🆔 {CHANNEL_TAG}")
-    return "\n".join(lines)
-
-# ================= GENERAL HANDLERS =================
+# ================= START =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data.clear()
-    text = """🎉 سلام به شما رفیق تازه‌وارد! 🎉
+    keyboard = [
+        [InlineKeyboardButton("📝 ثبت نظر درباره استاد", callback_data="start_form")],
+        [InlineKeyboardButton("💬 چت خصوصی", url=CHANNEL_DIRECT_LINK)],
+        [InlineKeyboardButton("🕵️ چت ناشناس با ادمین", callback_data="anon_start")]
+    ]
+    text = """
+🎉 سلام به شما رفیق تازه‌وارد! 🎉
 
 خوش اومدی به جایی که می‌تونی با خیال راحت تجربه و نظر خودت درباره اساتید رو با بقیه دانشجوها به اشتراک بذاری! هدف؟ کمک به همه برای انتخاب بهتر ترم‌های بعد 😎
 
@@ -93,20 +81,26 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ✨ و یه چیز دیگه: اگه پیشنهادی داری یا دوست داری چیزی به ربات اضافه بشه، حتماً تو دایرکت کانال با من درمیون بذار تا با هم یه تجربه تحصیلی عالی و بی‌دردسر بسازیم!
 
-خب، آماده‌ای شروع کنی؟ 🚀
-"""
+خب، آماده‌ای شروع کنی؟ 🚀"""
     if update.message:
-        await update.message.reply_text(text, reply_markup=main_menu(), parse_mode="Markdown")
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     else:
-        await update.callback_query.message.edit_text(text, reply_markup=main_menu(), parse_mode="Markdown")
-    return ConversationHandler.END
+        q = update.callback_query
+        await q.answer()
+        await q.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
 
-# ================= FORM LOGIC =================
+# ================= FORM =================
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text("*👨‍🏫 نام استاد:\n\n پاسخ خود را وارد کنید*", parse_mode="Markdown")
+    if update.callback_query:
+        q = update.callback_query
+        await q.answer()
+        await q.message.reply_text("*👨‍🏫 استاد:*\n\nلطفاً پاسخ خود را وارد کنید:", parse_mode="Markdown")
+    else:
+        await update.message.reply_text("*👨‍🏫 استاد:*\n\nلطفاً پاسخ خود را وارد کنید:", parse_mode="Markdown")
+    context.user_data.clear()
     return ASK_PROF
 
+Deniz, [31.01.2026 15:48]
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["استاد"] = update.message.text
     await update.message.reply_text("*📚 درس:*\n\nلطفاً پاسخ خود را وارد کنید:", parse_mode="Markdown")
@@ -175,22 +169,35 @@ async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نمره"] = update.message.text
     summary = build_form_text(context.user_data)
-    keyboard = [[InlineKeyboardButton("✅ ارسال نهایی", callback_data="submit_form"), InlineKeyboardButton("❌ انصراف", callback_data="start")]]
-    await update.message.reply_text(f"📋 **پیش‌نمایش فرم شما:**\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+
+    keyboard = [
+        [InlineKeyboardButton("✅ ارسال", callback_data="submit_form"),
+         InlineKeyboardButton("❌ حذف", callback_data="delete_form")]
+    ]
+
+    await update.message.reply_text(
+        "📋 *فرم شما تکمیل شد:*\n\n" + summary,
+        reply_markup=InlineKeyboardMarkup(keyboard),
+        parse_mode="Markdown"
+    )
     return ConversationHandler.END
 
-# ================= ROUTER =================
-async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("لطفاً یک گزینه را از منو انتخاب کنید یا دستور /start را بزنید:", reply_markup=main_menu())
-
-# --- دکمه‌های تایید فرم توسط ادمین ---
-async def submit_form_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+Deniz, [31.01.2026 15:48]
+# ================= SUBMIT =================
+async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
+
     summary = build_form_text(context.user_data)
-    keyboard = [[InlineKeyboardButton("✅ تایید", callback_data=f"admin_accept:{q.from_user.id}"), InlineKeyboardButton("❌ رد", callback_data=f"admin_reject:{q.from_user.id}")]]
-    await context.bot.send_message(chat_id=ADMIN_ID, text=f"📝 فرم جدید:\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-    await q.edit_message_text("📨 فرم برای ادمین ارسال شد.")
+
+    keyboard = [
+        [InlineKeyboardButton("✅ قبول", callback_data=f"admin_accept:{q.from_user.id}"),
+         InlineKeyboardButton("❌ رد", callback_data=f"admin_reject:{q.from_user.id}")]
+    ]
+    await context.bot.send_message(chat_id=ADMIN_ID, text=summary,
+                                   reply_markup=InlineKeyboardMarkup(keyboard),
+                                   parse_mode="Markdown")
+    await q.message.edit_text("📨 فرم ارسال شد و بعد از بررسی توسط ادمین منتشر می‌شود 🙏")
 
 # ================= ADMIN ACTIONS =================
 async def admin_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -274,6 +281,7 @@ async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_sessions[q.from_user.id] = user_id
     await q.message.reply_text("✍️ پیام خود را برای کاربر وارد کنید:")
 
+Deniz, [31.01.2026 15:48]
 async def admin_receive_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
     if admin_id in reply_sessions:
@@ -303,13 +311,16 @@ async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     await q.answer()
     await start(update, context)
+
 # ================= MAIN =================
 def main():
     app = Application.builder().token(TOKEN).build()
 
-    # هندلر فرم نظرسنجی
-    form_handler = ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
+    conv = ConversationHandler(
+        entry_points=[
+            CallbackQueryHandler(start_form, pattern="^start_form$"),
+            CommandHandler("start", start_form)
+        ],
         states={
             ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
             ASK_COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_teaching)],
@@ -326,29 +337,25 @@ def main():
             ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
-        fallbacks=[CallbackQueryHandler(start, pattern="^start$")],
-        per_chat=True, per_message=False
+        fallbacks=[CallbackQueryHandler(delete_form, pattern="^delete_form$")]
     )
 
-    # ترتیب هندلرها بسیار حیاتی است
     app.add_handler(CommandHandler("start", start))
-    
-    # اضافه کردن سیستم ثبت گروه (اگر فایل موجود باشد)
-    if group_conv:
-        app.add_handler(group_conv)
-        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
-    
-    app.add_handler(form_handler)
-    
-    # دکمه‌های عمومی
-    app.add_handler(CallbackQueryHandler(submit_form_callback, pattern="^submit_form$"))
-    app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
-    
-    # مدیریت پیام‌های متفرقه
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
+    app.add_handler(conv)
+    app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
+    app.add_handler(CallbackQueryHandler(admin_actions, pattern="^(admin_accept|admin_reject):"))
+    app.add_handler(CallbackQueryHandler(handle_reaction, pattern="^(like|dislike):"))
 
-    print("🚀 Bot Started...")
-    app.run_polling(drop_pending_updates=True)
+    app.add_handler(CallbackQueryHandler(anon_start, pattern="^anon_start$"))
+    app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
+    app.add_handler(CallbackQueryHandler(user_show_msg, pattern="^user_show_msg:"))
+    app.add_handler(CallbackQueryHandler(end_chat, pattern="^end_chat$"))
 
-if __name__ == "__main__":
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & ~filters.User(ADMIN_ID), receive_anon))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_ID), admin_receive_reply))
+
+    print("✅ ربات اجرا شد...")
+    app.run_polling()
+
+if name == "main":
     main()
