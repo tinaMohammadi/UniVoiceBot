@@ -100,7 +100,7 @@ async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data.clear()
     return ASK_PROF
 
-Deniz, [31.01.2026 15:48]
+
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["استاد"] = update.message.text
     await update.message.reply_text("*📚 درس:*\n\nلطفاً پاسخ خود را وارد کنید:", parse_mode="Markdown")
@@ -182,7 +182,7 @@ async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ConversationHandler.END
 
-Deniz, [31.01.2026 15:48]
+
 # ================= SUBMIT =================
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
