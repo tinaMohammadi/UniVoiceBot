@@ -3,6 +3,8 @@ import logging
 import threading
 import time
 import requests
+import random
+import string
 from flask import Flask
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -17,91 +19,83 @@ SELF_URL = os.getenv("SELF_URL")
 ADMIN_ID = 7997819976
 CHANNEL_ID = "@UniVoiceHub"
 BOT_USERNAME = "UniEchoFeedbackBot"
-CHANNEL_DIRECT_LINK = "https://t.me/UniVoiceHub?direct"
 CHANNEL_TAG = "@UniVoiceHub"
 
 logging.basicConfig(level=logging.INFO)
 
 # ================= KEEP ALIVE SERVER =================
 web_app = Flask(__name__)
-
 @web_app.route("/")
-def home():
-    return "Bot is alive!", 200
+def home(): return "Bot is alive!", 200
 
 def run_web():
     port = int(os.environ.get("PORT", 10000))
     web_app.run(host="0.0.0.0", port=port)
 
-# ================= SELF-PING =================
 def self_ping():
     while True:
         try:
-            if SELF_URL:
-                requests.get(SELF_URL)
-                print("🔁 Pinged self to stay awake.")
-        except Exception as e:
-            print("❌ Ping failed:", e)
+            if SELF_URL: requests.get(SELF_URL)
+        except: pass
         time.sleep(300)
 
 # ================= STATES =================
+# نظرسنجی استاد
 (ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
  ASK_PROJECT, ASK_ATTEND, ASK_MIDTERM, ASK_FINAL, ASK_MATCH,
  ASK_CONTACT, ASK_CONCLUSION, ASK_SEMESTER, ASK_GRADE) = range(14)
 
-FORM_QUESTIONS = [
-    ("👨‍🏫 استاد", "استاد"), ("📚 درس", "درس"), ("🎓 نوع تدریس", "نوع تدریس"),
-    ("💬 خصوصیات اخلاقی", "خصوصیات اخلاقی"), ("📄 جزوه", "جزوه"), ("🧪 پروژه", "پروژه"),
-    ("🕒 حضور و غیاب", "حضور و غیاب"), ("📝 میان‌ترم", "میان‌ترم"), ("📘 پایان‌ترم", "پایان‌ترم"),
-    ("📊 میزان تطبیق سوالات با جزوه", "تطبیق سوالات"), ("📞 راه ارتباطی", "راه ارتباطی"),
-    ("📌 نتیجه‌گیری", "نتیجه‌گیری"), ("📅 ترمی که با استاد داشتی", "ترم"), ("⭐ نمره از ۲۰", "نمره"),
-]
-
-post_reactions = {}
-anon_sessions = {}
-reply_sessions = {}
+# ثبت گروه
+(G_RULES, G_NAME, G_PROF, G_ID, G_BOT_ADD) = range(100, 105)
 
 # ================= HELPERS =================
-def reaction_keyboard(msg_id):
-    data = post_reactions.get(msg_id, {"likes": set(), "dislikes": set()})
-    return InlineKeyboardMarkup([[
-        InlineKeyboardButton(f"👍 {len(data['likes'])}", callback_data=f"like:{msg_id}"),
-        InlineKeyboardButton(f"👎 {len(data['dislikes'])}", callback_data=f"dislike:{msg_id}")
-    ], [InlineKeyboardButton("📝 ثبت نظر", url=f"https://t.me/{BOT_USERNAME}?start=form")]])
+def main_menu():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📝 ثبت نظر درباره استاد", callback_data="start_form")],
+        [InlineKeyboardButton("👥 ثبت گروه کلاسی ❤️", callback_data="start_group_reg")],
+        [InlineKeyboardButton("🕵️ چت ناشناس با ادمین", callback_data="anon_start")]
+    ])
 
 def build_form_text(data):
-    lines = []
-    for title, key in FORM_QUESTIONS:
-        value = data.get(key, "-")
-        lines.append(f"*{title}:*\n{value}\n")
-    lines.append("──────────────")
-    lines.append(f"🆔 {CHANNEL_TAG}")
+    questions = [
+        ("👨‍🏫 استاد", "استاد"), ("📚 درس", "درس"), ("🎓 نوع تدریس", "نوع تدریس"),
+        ("💬 خصوصیات اخلاقی", "خصوصیات اخلاقی"), ("📄 جزوه", "جزوه"), ("🧪 پروژه", "پروژه"),
+        ("🕒 حضور و غیاب", "حضور و غیاب"), ("📝 میان‌ترم", "میان‌ترم"), ("📘 پایان‌ترم", "پایان‌ترم"),
+        ("📊 میزان تطبیق", "تطبیق سوالات"), ("📞 راه ارتباطی", "راه ارتباطی"),
+        ("📌 نتیجه‌گیری", "نتیجه‌گیری"), ("📅 ترم", "ترم"), ("⭐ نمره", "نمره"),
+    ]
+    lines = [f"*{q[0]}:*\n{data.get(q[1], '-')}\n" for q in questions]
+    lines.append(f"──────────────\n🆔 {CHANNEL_TAG}")
     return "\n".join(lines)
 
-# ================= HANDLERS =================
+# ================= GENERAL HANDLERS =================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    keyboard = [
-        [InlineKeyboardButton("📝 ثبت نظر درباره استاد", callback_data="start_form")],
-        [InlineKeyboardButton("💬 چت خصوصی", url=CHANNEL_DIRECT_LINK)],
-        [InlineKeyboardButton("🕵️ چت ناشناس با ادمین", callback_data="anon_start")]
-    ]
-    text = "🎉 سلام خوش اومدی! برای شروع یکی از گزینه‌های زیر رو انتخاب کن:"
-    if update.message:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-    else:
-        q = update.callback_query
-        await q.answer()
-        await q.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    context.user_data.clear()
+    text = """🎉 سلام به شما رفیق تازه‌وارد! 🎉
 
-# --- FORM LOGIC ---
-async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["anon_mode"] = False # غیرفعال کردن حالت ناشناس هنگام شروع فرم
-    msg = "*👨‍🏫 استاد:*\n\nلطفاً پاسخ خود را وارد کنید:"
-    if update.callback_query:
-        await update.callback_query.answer()
-        await update.callback_query.message.reply_text(msg, parse_mode="Markdown")
+خوش اومدی به جایی که می‌تونی با خیال راحت تجربه و نظر خودت درباره اساتید رو با بقیه دانشجوها به اشتراک بذاری! هدف؟ کمک به همه برای انتخاب بهتر ترم‌های بعد 😎
+
+💌 نگران نباش، همه پیام‌ها کاملاً ناشناس ارسال می‌شن، پس راحت باش و هر چی دوست داری بگو.
+
+✨ و یه چیز دیگه: اگه پیشنهادی داری یا دوست داری چیزی به ربات اضافه بشه، حتماً تو دایرکت کانال با من درمیون بذار تا با هم یه تجربه تحصیلی عالی و بی‌دردسر بسازیم!
+
+خب، آماده‌ای شروع کنی؟ 🚀
+"""
+    if update.message:
+        await update.message.reply_text(text, reply_markup=main_menu())
     else:
-        await update.message.reply_text(msg, parse_mode="Markdown")
+        await update.callback_query.message.edit_text(text, reply_markup=main_menu())
+
+async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    context.user_data["mode"] = "ANON_WAITING"
+    await update.callback_query.message.reply_text("🕵️ پیام خودت رو بنویس تا ناشناس برای ادمین ارسال بشه:")
+
+# ================= FORM LOGIC =================
+async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer()
+    context.user_data["mode"] = "IN_FORM"
+    await update.callback_query.message.reply_text("*👨‍🏫 گام اول: نام استاد:*", parse_mode="Markdown")
     return ASK_PROF
 
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -146,7 +140,7 @@ async def ask_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
-    await update.message.reply_text("*📊 میزان تطبیق سوالات با جزوه (از ۵):*", parse_mode="Markdown")
+    await update.message.reply_text("*📊 میزان تطبیق سوالات با جزوه:*", parse_mode="Markdown")
     return ASK_MATCH
 
 async def ask_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -172,86 +166,55 @@ async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نمره"] = update.message.text
     summary = build_form_text(context.user_data)
-    keyboard = [[InlineKeyboardButton("✅ ارسال", callback_data="submit_form"), InlineKeyboardButton("❌ حذف", callback_data="delete_form")]]
-    await update.message.reply_text(f"📋 *فرم تکمیل شد:*\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    keyboard = [[InlineKeyboardButton("✅ ارسال نهایی", callback_data="submit_form"), InlineKeyboardButton("❌ انصراف", callback_data="start")]]
+    await update.message.reply_text(f"📋 *پیش‌نمایش فرم شما:*\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return ConversationHandler.END
 
-# --- ANON CHAT LOGIC ---
-async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    context.user_data["anon_mode"] = True
-    await q.message.reply_text("🕵️ پیام خودت رو بفرست تا ناشناس برای ادمین ارسال بشه:")
+# ================= MESSAGE ROUTER (CRITICAL FIX) =================
+async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.message.from_user.id
+    mode = context.user_data.get("mode")
 
-async def receive_anon(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # این تابع فقط وقتی اجرا می‌شود که کاربر در حالت anon_mode باشد
-    if context.user_data.get("anon_mode"):
-        user_id = update.message.from_user.id
-        msg_text = update.message.text
+    if mode == "ANON_WAITING":
         keyboard = [[InlineKeyboardButton("✉️ پاسخ به کاربر", callback_data=f"admin_reply:{user_id}")]]
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 پیام ناشناس:\n\n{msg_text}", reply_markup=InlineKeyboardMarkup(keyboard))
-        await update.message.reply_text("✅ پیام شما به ادمین ارسال شد.")
-        context.user_data["anon_mode"] = False
-    else:
-        # اگر در حالت ناشناس نیست، به منوی اصلی هدایتش کن
-        await start(update, context)
+        await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 پیام ناشناس از طرف دانشجو:\n\n{update.message.text}", reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("✅ پیام شما با موفقیت و به‌صورت ناشناس برای ادمین ارسال شد.")
+        context.user_data["mode"] = None
+        return
 
-# --- ADMIN & REACTIONS ---
+    if user_id == ADMIN_ID and context.user_data.get("replying_to"):
+        target_id = context.user_data["replying_to"]
+        await context.bot.send_message(chat_id=target_id, text=f"📩 *پاسخ ادمین به شما:*\n\n{update.message.text}", parse_mode="Markdown")
+        await update.message.reply_text("✅ پاسخ شما برای دانشجو ارسال شد.")
+        context.user_data["replying_to"] = None
+        return
+
+    await update.message.reply_text("لطفاً یکی از گزینه‌های منو را انتخاب کنید یا دستور /start را بزنید.", reply_markup=main_menu())
+
+# ================= ADMIN & CALLBACKS =================
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    await q.answer()
     summary = build_form_text(context.user_data)
-    keyboard = [[InlineKeyboardButton("✅ قبول", callback_data=f"admin_accept:{q.from_user.id}"), InlineKeyboardButton("❌ رد", callback_data=f"admin_reject:{q.from_user.id}")]]
-    await context.bot.send_message(chat_id=ADMIN_ID, text=summary, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-    await q.message.edit_text("📨 فرم برای تایید ادمین ارسال شد.")
-
-async def admin_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    data = q.data
-    if data.startswith("admin_accept:"):
-        user_id = int(data.split(":")[1])
-        msg = await context.bot.send_message(chat_id=CHANNEL_ID, text=q.message.text, parse_mode="Markdown")
-        post_reactions[msg.message_id] = {"likes": set(), "dislikes": set()}
-        await msg.edit_reply_markup(reply_markup=reaction_keyboard(msg.message_id))
-        await context.bot.send_message(chat_id=user_id, text="✅ نظر شما در کانال منتشر شد.")
-    await q.message.delete()
-
-async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    action, msg_id = q.data.split(":")
-    msg_id = int(msg_id)
-    user_id = q.from_user.id
-    res = post_reactions.setdefault(msg_id, {"likes": set(), "dislikes": set()})
-    if action == "like":
-        res["dislikes"].discard(user_id)
-        res["likes"].add(user_id)
-    else:
-        res["likes"].discard(user_id)
-        res["dislikes"].add(user_id)
-    await q.answer("نظر شما ثبت شد")
-    await q.message.edit_reply_markup(reply_markup=reaction_keyboard(msg_id))
+    keyboard = [[InlineKeyboardButton("✅ تایید و انتشار", callback_data=f"admin_accept:{q.from_user.id}"), InlineKeyboardButton("❌ رد فرم", callback_data=f"admin_reject:{q.from_user.id}")]]
+    await context.bot.send_message(chat_id=ADMIN_ID, text=f"📝 فرم جدید برای بررسی:\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    await q.edit_message_text("📨 فرم شما برای ادمین ارسال شد. پس از تایید در کانال منتشر می‌شود.")
 
 async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
-    await q.answer()
     user_id = int(q.data.split(":")[1])
-    reply_sessions[q.from_user.id] = user_id
+    context.user_data["replying_to"] = user_id
     await q.message.reply_text("✍️ پاسخ خود را بنویسید:")
+    await q.answer()
 
-async def admin_receive_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    admin_id = update.message.from_user.id
-    if admin_id in reply_sessions:
-        user_id = reply_sessions[admin_id]
-        await context.bot.send_message(chat_id=user_id, text=f"📩 پیام ادمین:\n\n{update.message.text}")
-        await update.message.reply_text("✅ ارسال شد.")
-        del reply_sessions[admin_id]
-
-async def delete_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.message.delete()
-
-async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await start(update, context)
+async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    action, user_id = q.data.split(":")
+    if action == "admin_accept":
+        await context.bot.send_message(chat_id=CHANNEL_ID, text=q.message.text, parse_mode="Markdown")
+        await context.bot.send_message(chat_id=user_id, text="✅ نظر شما تایید و در کانال منتشر شد.")
+    else:
+        await context.bot.send_message(chat_id=user_id, text="❌ متاسفانه فرم شما توسط ادمین تایید نشد.")
+    await q.message.delete()
 
 # ================= MAIN =================
 def main():
@@ -261,13 +224,8 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    # ۱. هندلرهای اولویت‌دار (Admin & Reactions)
-    app.add_handler(CallbackQueryHandler(admin_actions, pattern="^admin_accept:|^admin_reject:"))
-    app.add_handler(CallbackQueryHandler(handle_reaction, pattern="^(like|dislike):"))
-    app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
-
-    # ۲. هندلر فرم (Conversation)
-    conv = ConversationHandler(
+    # هندلر فرم نظرسنجی
+    form_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
         states={
             ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
@@ -285,22 +243,21 @@ def main():
             ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
-        fallbacks=[CallbackQueryHandler(delete_form, pattern="^delete_form$")]
+        fallbacks=[CommandHandler("start", start), CallbackQueryHandler(start, pattern="^start$")]
     )
-    app.add_handler(conv)
 
-    # ۳. هندلرهای عمومی و پیام ناشناس
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(form_conv)
     app.add_handler(CallbackQueryHandler(anon_start, pattern="^anon_start$"))
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
-    app.add_handler(CallbackQueryHandler(end_chat, pattern="^end_chat$"))
+    app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
+    app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
+    app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
     
-    # هندلر پیام ادمین (پاسخ به ناشناس)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND & filters.User(ADMIN_ID), admin_receive_reply))
-    # هندلر پیام کاربر (ارسال ناشناس)
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_anon))
+    # هندلر نهایی برای چت ناشناس و پیام‌های معمولی
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
-    print("🚀 Bot is live...")
+    print("🚀 Bot is running...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
