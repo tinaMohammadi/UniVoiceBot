@@ -141,15 +141,14 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
         await q.message.edit_text("✅ منتشر شد.")
 
 # کانورزیشن با اصلاح دکمه افزودن و بازگشت
-# --- اصلاح نهایی و تضمینی برای زنده کردن دکمه افزودن ---
 group_conv = ConversationHandler(
     entry_points=[
-        # این دو خط دروازه‌های ورود هستند
+        # وقتی از منوی اصلی روی دکمه "ثبت گروه" کلیک میشه
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
+        # وقتی مستقیماً روی "افزودن گروه جدید" (دکمه سبز) کلیک میشه
         CallbackQueryHandler(show_rules, pattern="^g_add$")
     ],
     states={
-        # نکته طلایی: دکمه g_add را اینجا هم اضافه کردیم تا ربات در این مرحله "کر" نشود
         G_RULES: [
             CallbackQueryHandler(show_rules, pattern="^g_add$"),
             CallbackQueryHandler(start, pattern="^start$")
@@ -158,16 +157,14 @@ group_conv = ConversationHandler(
             CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
             CallbackQueryHandler(start, pattern="^start$")
         ],
+        # بقیه استیت‌ها رو دست نزن، فقط مطمئن شو ترتیبشون در فایل درسته
         G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
         G_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_time)],
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
-    fallbacks=[
-        CallbackQueryHandler(start, pattern="^start$"),
-        CommandHandler("start", start)
-    ],
+    fallbacks=[CallbackQueryHandler(start, pattern="^start$")],
     per_chat=True,
     per_message=False
 )
