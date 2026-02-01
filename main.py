@@ -239,7 +239,6 @@ async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE
     else:
         await context.bot.send_message(chat_id=user_id, text="❌ فرم شما تایید نشد.")
     await q.message.delete()
-
 # ================= MAIN =================
 def main():
     # راه‌اندازی سرور برای زنده نگه داشتن ربات
@@ -251,41 +250,70 @@ def main():
     # ساخت اپلیکیشن ربات
     app = Application.builder().token(TOKEN).build()
 
-    # ۱. دستور استارت (بالاترین اولویت برای فرمان‌های متنی)
+    # ۱. تعریف متغیرهای Conversation (بسیار مهم: اول تعریف، بعد استفاده)
+    
+    # الف) سیستم چت ناشناس
+    anon_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
+        states={
+            ANON_GET_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, anon_receive_msg)],
+            ANON_CONFIRM_SEND: [CallbackQueryHandler(anon_final_send, pattern="^anon_confirm_send$")]
+        },
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)],
+        per_message=False
+    )
+
+    # ب) سیستم فرم نظرسنجی اساتید
+    form_conv_handler = ConversationHandler(
+        entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
+        states={
+            ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
+            ASK_COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_teaching)],
+            ASK_TEACHING: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_ethics)],
+            ASK_ETHICS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_notes)],
+            ASK_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_project)],
+            ASK_PROJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_attend)],
+            ASK_ATTEND: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_midterm)],
+            ASK_MIDTERM: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_final)],
+            ASK_FINAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_match)],
+            ASK_MATCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_contact)],
+            ASK_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_conclusion)],
+            ASK_CONCLUSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_semester)],
+            ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
+            ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
+        },
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)],
+        per_message=False
+    )
+
+    # ۲. اضافه کردن هندلرها به ترتیب اولویت صحیح
+    
+    # اولویت ۱: دستور استارت
     app.add_handler(CommandHandler("start", start))
 
-    # ۲. ایمپورت سیستم مدیریت گروه‌ها
+    # اولویت ۲: مدیریت گروه‌ها (Import از فایل دیگر)
     try:
         from group_reg import group_conv, admin_group_decision
-        
-        # حیاتی: اول هندلر فرم ثبت‌نام گروه را اضافه می‌کنیم
-        # این کار باعث می‌شود دکمه "g_add" بلافاصله توسط فرم جذب شود
         app.add_handler(group_conv)
-        
-        # حیاتی: بلافاصله بعد از آن، هندلر دکمه‌های ادمین (انتشار، تایید و...)
-        # چون این دکمه‌ها در الگوی group_conv نیستند، به این هندلر می‌رسند و اجرا می‌شوند
         app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
-        
     except ImportError:
         print("❌ خطا: فایل group_reg.py یافت نشد!")
 
-    # ۳. سایر هندلرهای گفتگو (نظرسنجی و چت ناشناس)
-    app.add_handler(anon_conv)
-    app.add_handler(form_conv)
+    # اولویت ۳: اضافه کردن سایر گفتگوها (که در بالا تعریف کردیم)
+    app.add_handler(anon_conv_handler)
+    app.add_handler(form_conv_handler)
 
-    # ۴. سایر دکمه‌های عملیاتی (CallbackQueries عمومی)
+    # اولویت ۴: سایر دکمه‌های عملیاتی
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
-    
-    # دکمه بازگشت به منوی اصلی
     app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
 
-    # ۵. هندلر نهایی برای پیام‌های متنی آزاد
+    # اولویت ۵: پیام‌های متنی آزاد
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
     # شروع به کار ربات
-    print("🚀 Bot is live (Optimized Handler Priority)...")
+    print("🚀 Bot is live and fixed...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
