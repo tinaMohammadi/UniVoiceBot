@@ -132,20 +132,23 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 # کانورزیشن با الگوی اصلاح شده و حذف اخطار PTB
 group_conv = ConversationHandler(
     entry_points=[
-        # این خط اجازه می‌دهد هم از منوی اصلی و هم از داخل این پیام، ثبت‌نام شروع شود
+        # هر دو دکمه زیر به عنوان شروع کننده فرم شناخته می‌شوند
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
         CallbackQueryHandler(show_rules, pattern="^g_add$") 
     ],
     states={
         G_RULES: [CallbackQueryHandler(show_rules, pattern="^g_add$")],
         G_NAME: [CallbackQueryHandler(ask_g_name, pattern="^g_accept$")],
-        # بقیه استیت‌ها ثابت بماند...
         G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
         G_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_time)],
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
-    fallbacks=[CallbackQueryHandler(start_group_reg, pattern="^start$")],
-    per_message=False
+    fallbacks=[
+        CallbackQueryHandler(start_group_reg, pattern="^start$"),
+        CommandHandler("start", start_group_reg) # اجازه برگشت با دستور
+    ],
+    per_message=False,
+    per_chat=True
 )
