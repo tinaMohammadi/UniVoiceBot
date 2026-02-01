@@ -249,9 +249,7 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
-    # --- تعریف هندلرهای چت ناشناس و نظرسنجی (این‌ها باید قبل از بقیه باشند) ---
-    
-    # ۱. هندلر چت ناشناس
+    # ۱. هندلر چت ناشناس (اولویت بالا برای جلوگیری از تداخل)
     anon_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
         states={
@@ -288,29 +286,29 @@ def main():
     # اولویت ۱: دستور استارت اصلی
     app.add_handler(CommandHandler("start", start))
 
-    # اولویت ۲: سیستم‌های گفت‌وگو (نظرسنجی، چت و ثبت گروه)
+    # اولویت ۲: سیستم‌های گفت‌وگو (نظرسنجی و چت ناشناس)
     app.add_handler(anon_conv)
     app.add_handler(form_conv)
     
-    # ایمپورت و اضافه کردن هندلر ثبت گروه از فایل group_reg.py
+    # اولویت ۳: مدیریت گروه‌های کلاسی (ایمپورت از فایل دوم)
     try:
         from group_reg import group_conv, admin_group_decision
         app.add_handler(group_conv)
-        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^g_approve:|^g_reject:"))
+        # اصلاح شده: این هندلر حالا تمام اکشن‌های انتشار، درخواست عضویت، پذیرش و گزارش را پوشش می‌دهد
+        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
     except ImportError:
         print("⚠️ فایل group_reg.py پیدا نشد!")
 
-    # اولویت ۳: دکمه‌های کنترلی ادمین و دکمه‌های بازگشت
+    # اولویت ۴: دکمه‌های کنترلی فرم نظرسنجی و ادمین
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
     app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
 
-    # اولویت ۴ (آخرین اولویت): پیام‌های متنی آزاد
-    # این هندلر فقط زمانی اجرا می‌شود که کاربر در هیچ‌کدام از وضعیت‌های بالا نباشد
+    # اولویت ۵ (آخرین): مدیریت پیام‌های متنی و پاسخ ادمین
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
-    print("🚀 Bot is live with CORRECT handler priority...")
+    print("🚀 Bot is live with Extended Group Support...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
