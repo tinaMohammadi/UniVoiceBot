@@ -251,7 +251,7 @@ from telegram.ext import (
 
 def main():
     # ساخت اپلیکیشن ربات
-    app = Application.builder().token("YOUR_TOKEN_HERE").build()
+    app = Application.builder().token("8558196271:AAEuw7Rh7IZrU4_I11sJRX9TSPSPGIbGJKk").build()
 
     # --- ۱. تعریف ConversationHandler برای چت ناشناس ---
     anon_conv_handler = ConversationHandler(
