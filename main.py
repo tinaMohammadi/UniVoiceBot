@@ -242,7 +242,7 @@ async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 # ================= MAIN =================
 def main():
-    # راه‌اندازی سرور برای زنده نگه داشتن ربات در هاست (اگر استفاده می‌کنید)
+    # راه‌اندازی سرور برای زنده نگه داشتن ربات
     if 'run_web' in globals():
         threading.Thread(target=run_web, daemon=True).start()
     if 'self_ping' in globals():
@@ -251,75 +251,41 @@ def main():
     # ساخت اپلیکیشن ربات
     app = Application.builder().token(TOKEN).build()
 
-    # ۱. دستور استارت (بالاترین اولویت)
+    # ۱. دستور استارت (بالاترین اولویت برای فرمان‌های متنی)
     app.add_handler(CommandHandler("start", start))
 
-    # ۲. هندلرهای گفتگو (ConversationHandlers) 
-    # این بخش باید قبل از MessageHandler های معمولی باشد تا مراحل فرم‌ها طی شود.
-
-    # الف) سیستم چت ناشناس
-    anon_conv = ConversationHandler(
-        entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
-        states={
-            ANON_GET_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, anon_receive_msg)],
-            ANON_CONFIRM_SEND: [CallbackQueryHandler(anon_final_send, pattern="^anon_confirm_send$")]
-        },
-        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)]
-    )
-
-    # ب) سیستم فرم نظرسنجی اساتید
-    form_conv = ConversationHandler(
-        entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
-        states={
-            ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
-            ASK_COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_teaching)],
-            ASK_TEACHING: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_ethics)],
-            ASK_ETHICS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_notes)],
-            ASK_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_project)],
-            ASK_PROJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_attend)],
-            ASK_ATTEND: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_midterm)],
-            ASK_MIDTERM: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_final)],
-            ASK_FINAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_match)],
-            ASK_MATCH: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_contact)],
-            ASK_CONTACT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_conclusion)],
-            ASK_CONCLUSION: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_semester)],
-            ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
-            ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
-        },
-        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)]
-    )
-
-    # ۳. اضافه کردن هندلرهای گفتگو به اپلیکیشن
-    app.add_handler(anon_conv)
-    app.add_handler(form_conv)
-
-    # ۴. سیستم مدیریت گروه‌های کلاسی (ایمپورت از فایل group_reg.py)
-   # ۴. سیستم مدیریت گروه‌های کلاسی (ایمپورت از فایل group_reg.py)
+    # ۲. ایمپورت سیستم مدیریت گروه‌ها
     try:
         from group_reg import group_conv, admin_group_decision
         
-        # اولویت اول: هندلر دکمه‌های تایید، انتشار و عضویت (باید قبل از کانورزیشن باشد)
-        # این خط باعث می‌شود دکمه‌های "انتشار" که ادمین می‌زند، بلافاصله شناسایی شوند
-        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
-        
-        # اولویت دوم: سیستم مراحل ثبت نام گروه (فرم‌ها)
+        # حیاتی: اول هندلر فرم ثبت‌نام گروه را اضافه می‌کنیم
+        # این کار باعث می‌شود دکمه "g_add" بلافاصله توسط فرم جذب شود
         app.add_handler(group_conv)
         
+        # حیاتی: بلافاصله بعد از آن، هندلر دکمه‌های ادمین (انتشار، تایید و...)
+        # چون این دکمه‌ها در الگوی group_conv نیستند، به این هندلر می‌رسند و اجرا می‌شوند
+        app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
+        
     except ImportError:
-        print("❌ خطا: فایل group_reg.py در کنار فایل اصلی یافت نشد!")
+        print("❌ خطا: فایل group_reg.py یافت نشد!")
 
-    # ۵. سایر دکمه‌های عملیاتی (CallbackQueries)
+    # ۳. سایر هندلرهای گفتگو (نظرسنجی و چت ناشناس)
+    app.add_handler(anon_conv)
+    app.add_handler(form_conv)
+
+    # ۴. سایر دکمه‌های عملیاتی (CallbackQueries عمومی)
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
+    
+    # دکمه بازگشت به منوی اصلی
     app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
 
-    # ۶. هندلر نهایی برای پیام‌های متنی آزاد (کمترین اولویت)
-    # این هندلر فقط زمانی اجرا می‌شود که کاربر در حال پر کردن فرم نباشد
+    # ۵. هندلر نهایی برای پیام‌های متنی آزاد
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
     # شروع به کار ربات
-    print("🚀 Bot is live with JSON DB & Improved Group Management...")
+    print("🚀 Bot is live (Optimized Handler Priority)...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
