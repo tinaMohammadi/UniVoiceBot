@@ -96,67 +96,67 @@ async def delete_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Logic for asking questions
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["استاد"] = update.message.text
-    await update.message.reply_text("*📚 درس:*", parse_mode="Markdown")
+    await update.message.reply_text("*📚 درس:\n\n نام درس را وارد کنید :*", parse_mode="Markdown")
     return ASK_COURSE
 
 async def ask_teaching(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["درس"] = update.message.text
-    await update.message.reply_text("*🎓 نوع تدریس:*", parse_mode="Markdown")
+    await update.message.reply_text("*🎓 نوع تدریس:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_TEACHING
 
 async def ask_ethics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نوع تدریس"] = update.message.text
-    await update.message.reply_text("*💬 خصوصیات اخلاقی:*", parse_mode="Markdown")
+    await update.message.reply_text("*💬 خصوصیات اخلاقی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_ETHICS
 
 async def ask_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["خصوصیات اخلاقی"] = update.message.text
-    await update.message.reply_text("*📄 جزوه:*", parse_mode="Markdown")
+    await update.message.reply_text("*📄 جزوه:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_NOTES
 
 async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["جزوه"] = update.message.text
-    await update.message.reply_text("*🧪 پروژه:*", parse_mode="Markdown")
+    await update.message.reply_text("*🧪 پروژه:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_PROJECT
 
 async def ask_attend(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پروژه"] = update.message.text
-    await update.message.reply_text("*🕒 حضور و غیاب:*", parse_mode="Markdown")
+    await update.message.reply_text("*🕒 حضور و غیاب:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_ATTEND
 
 async def ask_midterm(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["حضور و غیاب"] = update.message.text
-    await update.message.reply_text("*📝 میان‌ترم:*", parse_mode="Markdown")
+    await update.message.reply_text("*📝 میان‌ترم:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_MIDTERM
 
 async def ask_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["میان‌ترم"] = update.message.text
-    await update.message.reply_text("*📘 پایان‌ترم:*", parse_mode="Markdown")
+    await update.message.reply_text("*📘 پایان‌ترم:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_FINAL
 
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
-    await update.message.reply_text("*📊 میزان تطبیق سوالات با جزوه (از ۵):*", parse_mode="Markdown")
+    await update.message.reply_text("*📊 میزان تطبیق سوالات با جزوه (از 5):\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_MATCH
 
 async def ask_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["تطبیق سوالات"] = update.message.text
-    await update.message.reply_text("*📞 راه ارتباطی:*", parse_mode="Markdown")
+    await update.message.reply_text("*📞 راه ارتباطی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_CONTACT
 
 async def ask_conclusion(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["راه ارتباطی"] = update.message.text
-    await update.message.reply_text("*📌 نتیجه‌گیری:*", parse_mode="Markdown")
+    await update.message.reply_text("*📌 نتیجه‌گیری:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_CONCLUSION
 
 async def ask_semester(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نتیجه‌گیری"] = update.message.text
-    await update.message.reply_text("*📅 ترمی که با استاد داشتی:*", parse_mode="Markdown")
+    await update.message.reply_text("*📅 ترمی که با استاد داشتی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_SEMESTER
 
 async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ترم"] = update.message.text
-    await update.message.reply_text("*⭐️ نمره از ۲۰:*", parse_mode="Markdown")
+    await update.message.reply_text("*⭐️ نمره از ۲۰:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
     return ASK_GRADE
 
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
