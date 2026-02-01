@@ -281,7 +281,7 @@ async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reply_sessions[q.from_user.id] = user_id
     await q.message.reply_text("✍️ پیام خود را برای کاربر وارد کنید:")
 
-Deniz, [31.01.2026 15:48]
+
 async def admin_receive_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
     admin_id = update.message.from_user.id
     if admin_id in reply_sessions:
