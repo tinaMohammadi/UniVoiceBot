@@ -266,7 +266,7 @@ def main():
     )
 
     # --- ۲. تعریف ConversationHandler برای فرم نظرسنجی ---
-    form_conv_handler = ConversationHandler(
+  form_conv_handler = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
         states={
             ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
@@ -274,7 +274,7 @@ def main():
             ASK_TEACHING: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_ethics)],
             ASK_ETHICS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_notes)],
             ASK_NOTES: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_project)],
-            ASK_PROJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_attend)],
+            ASK_PROJECT: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_attend)], # این خط رو چک کن
             ASK_ATTEND: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_midterm)],
             ASK_MIDTERM: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_final)],
             ASK_FINAL: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_match)],
@@ -284,11 +284,10 @@ def main():
             ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
-        fallbacks=[CallbackQueryHandler(start, pattern="^start$"), CommandHandler("start", start)],
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$")],
         per_chat=True,
         per_message=False
     )
-
     # --- ۳. اضافه کردن هندلرها به ترتیب اولویت (بسیار مهم) ---
 
     # اولویت ۱: دستور /start (همیشه بالاترین اولویت برای بازنشانی)
@@ -328,3 +327,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
