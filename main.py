@@ -25,6 +25,34 @@ CHANNEL_DIRECT_LINK = "https://t.me/UniVoiceHub?direct"
 
 logging.basicConfig(level=logging.INFO)
 
+# ================= LIKE SYSTEM =================
+post_reactions = {}  # message_id -> {"likes": set(), "dislikes": set()}
+
+def reaction_keyboard(msg_id):
+    data = post_reactions.get(msg_id, {"likes": set(), "dislikes": set()})
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(f"👍 {len(data['likes'])}", callback_data=f"like:{msg_id}"),
+            InlineKeyboardButton(f"👎 {len(data['dislikes'])}", callback_data=f"dislike:{msg_id}")
+        ],
+        [
+            InlineKeyboardButton("📝 ثبت نظر", url=f"https://t.me/{BOT_USERNAME}?start=form")
+        ]
+    ])
+
+# ================= FORMAT FORM =================
+def build_form_text(data):
+    lines = []
+    for title, key in FORM_QUESTIONS:
+        value = data.get(key, "-")
+        lines.append(f"*{title}:*\n{value}\n")
+
+    lines.append("──────────────")
+    lines.append("👍 *موافق این نظر هستم*")
+    lines.append("👎 *مخالف این نظر هستم*")
+    lines.append("\n⚠️ *مهم: قبل از تصمیم‌گیری بخوانید*")
+    lines.append(f"\n🆔 {CHANNEL_TAG}")
+    return "\n".join(lines)
 # ================= STATES =================
 # استفاده از اعداد بزرگ برای فرم نظرسنجی جهت جلوگیری از تداخل با group_reg
 (ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
@@ -76,7 +104,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= FORM LOGIC =================
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    await update.callback_query.message.reply_text("*👨‍🏫 نام استاد:\nzn پاسخ خود را وارد کنید*", parse_mode="Markdown")
+    await update.callback_query.message.reply_text("*👨‍🏫 نام استاد:\n\n پاسخ خود را وارد کنید*", parse_mode="Markdown")
     return ASK_PROF
 
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
