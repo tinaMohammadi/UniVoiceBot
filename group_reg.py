@@ -131,10 +131,15 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 
 # کانورزیشن با الگوی اصلاح شده و حذف اخطار PTB
 group_conv = ConversationHandler(
-    entry_points=[CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$")],
+    entry_points=[
+        # این خط اجازه می‌دهد هم از منوی اصلی و هم از داخل این پیام، ثبت‌نام شروع شود
+        CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
+        CallbackQueryHandler(show_rules, pattern="^g_add$") 
+    ],
     states={
         G_RULES: [CallbackQueryHandler(show_rules, pattern="^g_add$")],
         G_NAME: [CallbackQueryHandler(ask_g_name, pattern="^g_accept$")],
+        # بقیه استیت‌ها ثابت بماند...
         G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
@@ -142,5 +147,5 @@ group_conv = ConversationHandler(
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
     fallbacks=[CallbackQueryHandler(start_group_reg, pattern="^start$")],
-    per_message=False # این خط برای رفع اخطار لاگ شما اضافه شد
+    per_message=False
 )
