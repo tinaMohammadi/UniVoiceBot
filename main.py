@@ -111,20 +111,25 @@ async def ask_teaching(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["درس"] = update.message.text
     await update.message.reply_text("*🎓 نوع تدریس:*", parse_mode="Markdown")
     return ASK_TEACHING
-
 async def ask_ethics(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # وقتی کاربر "نوع تدریس" را فرستاد، این تابع اجرا می‌شود
     context.user_data["نوع تدریس"] = update.message.text
-    await update.message.reply_text("*💬 خصوصیات اخلاقی:*", parse_mode="Markdown")
-    return ASK_ETHICS
+    await update.message.reply_text("*💬 خصوصیات اخلاقی:*\n\nپاسخ خود را وارد کنید:", parse_mode="Markdown")
+    # اینجا باید بگوییم: حالا منتظر جوابِ سوالِ "خصوصیات اخلاقی" باش
+    return ASK_ETHICS 
 
 async def ask_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # وقتی کاربر "خصوصیات اخلاقی" را فرستاد، این تابع اجرا می‌شود
     context.user_data["خصوصیات اخلاقی"] = update.message.text
-    await update.message.reply_text("*📄 جزوه:*", parse_mode="Markdown")
+    await update.message.reply_text("*📄 جزوه:*\n\nپاسخ خود را وارد کنید:", parse_mode="Markdown")
+    # حالا منتظر جوابِ سوالِ "جزوه" باش
     return ASK_NOTES
 
 async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # وقتی کاربر "جزوه" را فرستاد، این تابع اجرا می‌شود
     context.user_data["جزوه"] = update.message.text
-    await update.message.reply_text("*🧪 پروژه:*", parse_mode="Markdown")
+    await update.message.reply_text("*🧪 پروژه:*\n\nپاسخ خود را وارد کنید:", parse_mode="Markdown")
+    # حالا منتظر جوابِ سوالِ "پروژه" باش
     return ASK_PROJECT
 
 async def ask_attend(update: Update, context: ContextTypes.DEFAULT_TYPE):
