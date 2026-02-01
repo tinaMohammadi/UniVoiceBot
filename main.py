@@ -11,6 +11,12 @@ from telegram.ext import (
     ConversationHandler, filters, ContextTypes
 )
 
+# فراخوانی فایل ثبت گروه (بعداً این فایل را ایجاد می‌کنیم)
+try:
+    from group_reg import group_conv
+except ImportError:
+    group_conv = None
+
 # ================= CONFIG =================
 TOKEN = os.getenv("BOT_TOKEN")
 SELF_URL = os.getenv("SELF_URL")
@@ -42,6 +48,9 @@ def self_ping():
 (ASK_PROF, ASK_COURSE, ASK_TEACHING, ASK_ETHICS, ASK_NOTES,
  ASK_PROJECT, ASK_ATTEND, ASK_MIDTERM, ASK_FINAL, ASK_MATCH,
  ASK_CONTACT, ASK_CONCLUSION, ASK_SEMESTER, ASK_GRADE) = range(14)
+
+# وضعیت‌های چت ناشناس
+(ANON_GET_MSG, ANON_CONFIRM_SEND) = range(20, 22)
 
 # ================= HELPERS =================
 def main_menu():
@@ -75,22 +84,47 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ✨ و یه چیز دیگه: اگه پیشنهادی داری یا دوست داری چیزی به ربات اضافه بشه، حتماً تو دایرکت کانال با من درمیون بذار تا با هم یه تجربه تحصیلی عالی و بی‌دردسر بسازیم!
 
-خب، آماده‌ای شروع کنی؟ 🚀
-"""
+خب، آماده‌ای شروع کنی؟ 🚀"""
     if update.message:
         await update.message.reply_text(text, reply_markup=main_menu(), parse_mode="Markdown")
     else:
         await update.callback_query.message.edit_text(text, reply_markup=main_menu(), parse_mode="Markdown")
+    return ConversationHandler.END
 
-async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ================= ANON CHAT SYSTEM (FIXED) =================
+async def anon_start_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    context.user_data["mode"] = "ANON_WAITING"
-    await update.callback_query.message.reply_text("🕵️ **حالت ناشناس فعال شد.**\n\nپیام خودت رو بنویس تا بدون نام و نشون برای ادمین ارسال بشه:", parse_mode="Markdown")
+    await update.callback_query.message.reply_text("🕵️ **حالت ناشناس فعال شد.**\n\nپیام خودت رو بنویس تا آماده ارسال بشه:", parse_mode="Markdown")
+    return ANON_GET_MSG
+
+async def anon_receive_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["temp_anon_msg"] = update.message.text
+    keyboard = [[InlineKeyboardButton("👁️ نمایش و ارسال پیام", callback_data="anon_confirm_send")]]
+    await update.message.reply_text("✅ پیام شما دریافت شد. برای ارسال نهایی روی دکمه زیر بزنید:", reply_markup=InlineKeyboardMarkup(keyboard))
+    return ANON_CONFIRM_SEND
+
+async def anon_final_send(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    user = q.from_user
+    msg_text = context.user_data.get("temp_anon_msg")
+    
+    # ارسال به ادمین (همراه با اطلاعات مخفی)
+    admin_kb = [[InlineKeyboardButton("✉️ پاسخ به کاربر", callback_data=f"admin_reply:{user.id}")]]
+    user_info = f"\n\n--- 🕵️ گزارش هویت (فقط برای ادمین) ---\n👤 نام: {user.first_name}\n🆔 یوزرنیم: @{user.username}\n🔢 آیدی: {user.id}"
+    await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 پیام ناشناس جدید:\n\n{msg_text}{user_info}", reply_markup=InlineKeyboardMarkup(admin_kb))
+    
+    # نمایش به کاربر
+    user_kb = [
+        [InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start")],
+        [InlineKeyboardButton("❌ پایان چت", callback_data="start")]
+    ]
+    await q.edit_message_text(f"🚀 **پیام شما با موفقیت ارسال شد:**\n\n{msg_text}", reply_markup=InlineKeyboardMarkup(user_kb), parse_mode="Markdown")
+    return ConversationHandler.END
 
 # ================= FORM LOGIC =================
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    context.user_data["mode"] = "IN_FORM"
     await update.callback_query.message.reply_text("*👨‍🏫  نام استاد:*\n\nپاسخ خود را وارد کنید:", parse_mode="Markdown")
     return ASK_PROF
 
@@ -169,22 +203,13 @@ async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= MESSAGE ROUTER =================
 async def handle_all_messages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
-    mode = context.user_data.get("mode")
-
-    if mode == "ANON_WAITING":
-        # اطلاعات مخفی برای ادمین
-        user_info = f"\n\n--- 🕵️ گزارش هویت (فقط برای ادمین) ---\n👤 نام: {user.first_name}\n🆔 یوزرنیم: @{user.username}\n🔢 آیدی: {user.id}"
-        
-        keyboard = [[InlineKeyboardButton("✉️ پاسخ به کاربر", callback_data=f"admin_reply:{user.id}")]]
-        await context.bot.send_message(chat_id=ADMIN_ID, text=f"📩 پیام ناشناس جدید:\n\n{update.message.text}{user_info}", reply_markup=InlineKeyboardMarkup(keyboard))
-        await update.message.reply_text("✅ پیام شما با موفقیت به‌صورت ناشناس ارسال شد.")
-        context.user_data["mode"] = None
-        return
-
+    
+    # پاسخ ادمین به پیام ناشناس
     if user.id == ADMIN_ID and context.user_data.get("replying_to"):
         target_id = context.user_data["replying_to"]
-        await context.bot.send_message(chat_id=target_id, text=f"📩 **پاسخ ادمین به پیام ناشناس شما:**\n\n{update.message.text}", parse_mode="Markdown")
-        await update.message.reply_text("✅ پاسخ ارسال شد.")
+        kb = [[InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start"), InlineKeyboardButton("❌ پایان چت", callback_data="start")]]
+        await context.bot.send_message(chat_id=target_id, text=f"📩 **پاسخ ادمین به پیام ناشناس شما:**\n\n{update.message.text}", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        await update.message.reply_text("✅ پاسخ برای دانشجو ارسال شد.")
         context.user_data["replying_to"] = None
         return
 
@@ -202,7 +227,7 @@ async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     q = update.callback_query
     user_id = int(q.data.split(":")[1])
     context.user_data["replying_to"] = user_id
-    await q.message.reply_text("✍️ پاسخ خود را بنویسید:")
+    await q.message.reply_text("✍️ پاسخ خود را برای کاربر بنویسید:")
     await q.answer()
 
 async def admin_accept_reject(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -222,6 +247,17 @@ def main():
 
     app = Application.builder().token(TOKEN).build()
 
+    # ۱. هندلر چت ناشناس
+    anon_conv = ConversationHandler(
+        entry_points=[CallbackQueryHandler(anon_start_callback, pattern="^anon_start$")],
+        states={
+            ANON_GET_MSG: [MessageHandler(filters.TEXT & ~filters.COMMAND, anon_receive_msg)],
+            ANON_CONFIRM_SEND: [CallbackQueryHandler(anon_final_send, pattern="^anon_confirm_send$")]
+        },
+        fallbacks=[CallbackQueryHandler(start, pattern="^start$")]
+    )
+
+    # ۲. هندلر فرم نظرسنجی
     form_conv = ConversationHandler(
         entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$")],
         states={
@@ -244,15 +280,20 @@ def main():
     )
 
     app.add_handler(CommandHandler("start", start))
+    app.add_handler(anon_conv)
     app.add_handler(form_conv)
-    app.add_handler(CallbackQueryHandler(anon_start, pattern="^anon_start$"))
+    
+    # ۳. هندلر ثبت گروه (اگر فایل موجود باشد)
+    if group_conv:
+        app.add_handler(group_conv)
+
     app.add_handler(CallbackQueryHandler(submit_form, pattern="^submit_form$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^admin_reply:"))
     app.add_handler(CallbackQueryHandler(admin_accept_reject, pattern="^admin_accept:|^admin_reject:"))
     app.add_handler(CallbackQueryHandler(start, pattern="^start$"))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_all_messages))
 
-    print("🚀 Bot is live...")
+    print("🚀 Bot is live and optimized...")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__": main()
