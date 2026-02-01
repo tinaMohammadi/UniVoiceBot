@@ -8,9 +8,18 @@ from telegram.ext import (
     ConversationHandler, 
     MessageHandler, 
     CallbackQueryHandler, 
-    CommandHandler,  # این خط اضافه شد
+    CommandHandler, 
     filters
 )
+
+# فرض بر این است که تابع start در فایل اصلی تعریف شده و اینجا ایمپورت می‌شود
+# اگر خطا داد، می‌توانید تابع start را هم به ابتدای این فایل بیاورید
+try:
+    from main import start 
+except ImportError:
+    # تعریف موقت تابع استارت اگر ایمپورت نشد (برای جلوگیری از کرش)
+    async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        pass
 
 # ================= CONFIG =================
 GROUP_CHANNEL_ID = "@classLink_online" 
@@ -35,33 +44,34 @@ G_RULES, G_NAME, G_PROF, G_ID, G_DAYS, G_TIME, G_BOT_ADD = range(100, 107)
 # ================= HANDLERS =================
 
 async def start_group_reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
+    query = update.callback_query
+    await query.answer()
     keyboard = [[InlineKeyboardButton("➕ افزودن گروه جدید", callback_data="g_add")],
                 [InlineKeyboardButton("🔙 بازگشت", callback_data="start")]]
-    await update.callback_query.message.edit_text(
+    await query.message.edit_text(
         "✨ **به بخش ثبت گروه کلاسی خوش آمدید**\n\nبرای ثبت مشخصات گروه خود روی دکمه زیر کلیک کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return G_RULES
 
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer()
+    query = update.callback_query
+    await query.answer()
     rules_text = (
         "📜 **قوانین و شرایط ثبت گروه:**\n\n"
         "1 - ربات باید حتماً در گروه ادمین باشد.\n"
         "2 - نام درس، استاد و مشخصه باید دقیق وارد شود.\n"
         "3 - مسئولیت محتوای تبادل شده در گروه با سازنده آن است.\n"
-        "4 - پذیرش عضویت اعضا به عهده ثبت‌کننده گروه می‌باشد.\n"
-        "5 - مسئولیت پذیرش افراد به عهده شما خواهد بود.\n"
-        "6 - گروه‌های غیردرسی تایید نخواهند شد.\n\n"
+        "4 - مسئولیت پذیرش افراد به عهده شما خواهد بود.\n"
+        "5 - گروه‌های غیردرسی تایید نخواهند شد.\n\n"
         f"🆔 {CHANNEL_TAG}\n🆔 {GROUP_CHANNEL_ID}"
     )
     keyboard = [[InlineKeyboardButton("✅ بله، قبول دارم", callback_data="g_accept")],
-                [InlineKeyboardButton("❌ انصراف", callback_data="start")]]
-    await update.callback_query.message.edit_text(rules_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+                [InlineKeyboardButton("❌ انصراف و بازگشت", callback_data="start")]]
+    await query.message.edit_text(rules_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return G_NAME
 
 async def ask_g_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.callback_query.answer() # اضافه شده برای جلوگیری از باگ کلیک
+    await update.callback_query.answer()
     await update.callback_query.message.reply_text("📍 **گام اول:**\n\nنام درس را وارد کنید:")
     return G_PROF
 
@@ -129,21 +139,22 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
                 f"📅 روز: {data['days']}\n🕒 ساعت: {data['time']}\n🔢 مشخصه: {data['id']}\n\n🆔 {CHANNEL_TAG}")
         await context.bot.send_message(chat_id=GROUP_CHANNEL_ID, text=text, reply_markup=InlineKeyboardMarkup(channel_kb), parse_mode="Markdown")
         await q.message.edit_text("✅ منتشر شد.")
-    elif action == "join_req":
-        user = q.from_user
-        owner_kb = [[InlineKeyboardButton("✅ پذیرش", callback_data=f"acc_join:{user.id}:{ref_id}")]]
-        await context.bot.send_message(chat_id=data['owner_id'], text=f"✳️ درخواست عضویت برای **{data['name']}** از طرف {user.first_name}", reply_markup=InlineKeyboardMarkup(owner_kb))
 
-# کانورزیشن با الگوی اصلاح شده و حذف اخطار PTB
+# کانورزیشن با اصلاح دکمه افزودن و بازگشت
 group_conv = ConversationHandler(
     entry_points=[
-        # هر دو دکمه زیر به عنوان شروع کننده فرم شناخته می‌شوند
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
-        CallbackQueryHandler(show_rules, pattern="^g_add$") 
+        CallbackQueryHandler(show_rules, pattern="^g_add$") # نقطه ورود مستقیم دکمه سبز
     ],
     states={
-        G_RULES: [CallbackQueryHandler(show_rules, pattern="^g_add$")],
-        G_NAME: [CallbackQueryHandler(ask_g_name, pattern="^g_accept$")],
+        G_RULES: [
+            CallbackQueryHandler(show_rules, pattern="^g_add$"),
+            CallbackQueryHandler(start, pattern="^start$") # دکمه بازگشت در این مرحله
+        ],
+        G_NAME: [
+            CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
+            CallbackQueryHandler(start, pattern="^start$") # دکمه انصراف در قوانین
+        ],
         G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
@@ -151,9 +162,9 @@ group_conv = ConversationHandler(
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
     fallbacks=[
-        CallbackQueryHandler(start_group_reg, pattern="^start$"),
-        CommandHandler("start", start_group_reg) # اجازه برگشت با دستور
+        CallbackQueryHandler(start, pattern="^start$"), # هندلر خروج اضطراری
+        CommandHandler("start", start)
     ],
-    per_message=False,
-    per_chat=True
+    per_chat=True,
+    per_message=False
 )
