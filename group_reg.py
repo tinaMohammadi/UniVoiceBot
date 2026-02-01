@@ -4,7 +4,12 @@ import json
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ContextTypes, ConversationHandler, MessageHandler, CallbackQueryHandler, filters
+    ContextTypes, 
+    ConversationHandler, 
+    MessageHandler, 
+    CallbackQueryHandler, 
+    CommandHandler,  # این خط اضافه شد
+    filters
 )
 
 # ================= CONFIG =================
