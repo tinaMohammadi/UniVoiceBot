@@ -294,12 +294,17 @@ def main():
     app.add_handler(form_conv)
 
     # ۴. سیستم مدیریت گروه‌های کلاسی (ایمپورت از فایل group_reg.py)
+   # ۴. سیستم مدیریت گروه‌های کلاسی (ایمپورت از فایل group_reg.py)
     try:
         from group_reg import group_conv, admin_group_decision
-        # اضافه کردن سیستم ثبت نام گروه
-        app.add_handler(group_conv)
-        # هندلر دکمه‌های تایید، انتشار، درخواست عضویت و گزارش (بسیار مهم)
+        
+        # اولویت اول: هندلر دکمه‌های تایید، انتشار و عضویت (باید قبل از کانورزیشن باشد)
+        # این خط باعث می‌شود دکمه‌های "انتشار" که ادمین می‌زند، بلافاصله شناسایی شوند
         app.add_handler(CallbackQueryHandler(admin_group_decision, pattern="^(g_pub|g_rej|join_req|acc_join|rej_join|report_g):"))
+        
+        # اولویت دوم: سیستم مراحل ثبت نام گروه (فرم‌ها)
+        app.add_handler(group_conv)
+        
     except ImportError:
         print("❌ خطا: فایل group_reg.py در کنار فایل اصلی یافت نشد!")
 
