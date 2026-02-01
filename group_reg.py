@@ -8,12 +8,11 @@ from telegram.ext import (
 )
 
 # ================= CONFIG =================
-GROUP_CHANNEL_ID = "@classLink_online" # آیدی کانال را اینجا وارد کنید
+GROUP_CHANNEL_ID = "@classLink_online" 
 ADMIN_ID = 7997819976
 CHANNEL_TAG = "@UniVoiceHub"
 DB_FILE = "groups_data.json"
 
-# توابع مدیریت دیتابیس
 def save_db(data):
     with open(DB_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
@@ -21,7 +20,8 @@ def save_db(data):
 def load_db():
     if os.path.exists(DB_FILE):
         with open(DB_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            try: return json.load(f)
+            except: return {}
     return {}
 
 # ================= STATES =================
@@ -45,12 +45,10 @@ async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "1 - ربات باید حتماً در گروه ادمین باشد.\n"
         "2 - نام درس، استاد و مشخصه باید دقیق وارد شود.\n"
         "3 - مسئولیت محتوای تبادل شده در گروه با سازنده آن است.\n"
-        "4 - پذیرش عضویت اعضا به عهده ثبت کننده گروه میباشد(دقت کنید الزامی ندارد ثبت کننده حتما ادمین باشد اما باید از ادمین بخواهد تا ربات را در گروه ادمین کنند )"
-        "5 - مسئولیت پذیرش افرادی که شایستگی عضویت در گروه شمارا ندارند به عهده خود شما خواهد بود "
-        "6 - گروه‌های غیر درسی یا با محتوای نامناسب تایید نخواهند شد.\n\n"
-        "آیا قوانین را می‌پذیرید؟"
-        "@UniVoiceHub"
-        "@classLink_online"
+        "4 - پذیرش عضویت اعضا به عهده ثبت‌کننده گروه می‌باشد (ثبت‌کننده باید از ادمین بخواهد ربات را در گروه ادمین کند).\n"
+        "5 - مسئولیت پذیرش افرادی که شایستگی عضویت ندارند به عهده شماست.\n"
+        "6 - گروه‌های غیردرسی یا با محتوای نامناسب تایید نخواهند شد.\n\n"
+        f"🆔 {CHANNEL_TAG}\n🆔 {GROUP_CHANNEL_ID}"
     )
     keyboard = [[InlineKeyboardButton("✅ بله، قبول دارم", callback_data="g_accept")],
                 [InlineKeyboardButton("❌ انصراف", callback_data="start")]]
@@ -73,12 +71,12 @@ async def ask_g_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ask_g_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["g_id"] = update.message.text
-    await update.message.reply_text("📍 **گام چهارم:**\n\nروزهای برگزاری کلاس را وارد کنید (مثلاً: شنبه و چهارشنبه):")
+    await update.message.reply_text("📍 **گام چهارم:**\n\nروزهای برگزاری کلاس را وارد کنید:")
     return G_TIME
 
 async def ask_g_time(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["g_days"] = update.message.text
-    await update.message.reply_text("📍 **گام آخر:**\n\nساعت برگزاری کلاس را وارد کنید (مثلاً: ساعت ۱۰:۳۰ تا ۱۲:۰۰):")
+    await update.message.reply_text("📍 **گام آخر:**\n\nساعت برگزاری کلاس را وارد کنید:")
     return G_BOT_ADD
 
 async def ask_g_bot_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -99,13 +97,13 @@ async def ask_g_bot_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     }
     save_db(db)
     
+    # پیام برای ادمین (بدون توکن)
     admin_text = (f"🔔 **درخواست گروه جدید**\n\n"
                   f"📚 درس: {context.user_data['g_name']}\n"
                   f"👨‍🏫 استاد: {context.user_data['g_prof']}\n"
                   f"📅 روزها: {context.user_data['g_days']}\n"
                   f"🕒 ساعت: {context.user_data['g_time']}\n"
-                  f"🔢 مشخصه: {context.user_data['g_id']}\n"
-                  
+                  f"🔢 مشخصه: {context.user_data['g_id']}")
     
     keyboard = [[InlineKeyboardButton("✅ تایید و انتشار", callback_data=f"g_pub:{ref_id}")],
                 [InlineKeyboardButton("❌ رد درخواست", callback_data=f"g_rej:{ref_id}")]]
@@ -115,7 +113,7 @@ async def ask_g_bot_add(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
         f"📨 **درخواست شما برای ادمین ارسال شد.**\n\n"
         f"🔑 توکن اختصاصی شما:\n`{user_token}`\n\n"
-        "لطفاً توکن را در گروه خود ارسال کنید. پس از تایید ادمین، گروه در کانال منتشر می‌شود.", parse_mode="Markdown")
+        "لطفاً توکن را در گروه خود ارسال کنید.", parse_mode="Markdown")
     return ConversationHandler.END
 
 async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -126,7 +124,7 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
     db = load_db()
     data = db.get(ref_id)
     if not data:
-        await q.answer("❌ خطا: اطلاعات یافت نشد.", show_alert=True)
+        await q.answer("❌ داده‌ای یافت نشد.", show_alert=True)
         return
 
     if action == "g_pub":
@@ -137,27 +135,22 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
                         f"📖 درس: {data['name']}\n"
                         f"👨‍🏫 استاد: {data['prof']}\n"
                         f"📅 روزها: {data['days']}\n"
-                        f"🕒 ساعت: {data['time']}\n\n"
-                        f"🔢 مشخصه: {data['id']}\n"
+                        f"🕒 ساعت: {data['time']}\n"
+                        f"🔢 مشخصه: {data['id']}\n\n"
                         f"🆔 {CHANNEL_TAG}")
         
         await context.bot.send_message(chat_id=GROUP_CHANNEL_ID, text=channel_text, reply_markup=InlineKeyboardMarkup(channel_kb), parse_mode="Markdown")
-        await context.bot.send_message(chat_id=data['owner_id'], text=f"✅ گروه شما ({data['name']}) در کانال منتشر شد.")
-        await q.message.edit_text("✅ با موفقیت منتشر شد.")
+        await context.bot.send_message(chat_id=data['owner_id'], text=f"✅ گروه شما برای درس {data['name']} منتشر شد.")
+        await q.message.edit_text("✅ منتشر شد.")
 
     elif action == "join_req":
         user = q.from_user
         owner_id = data['owner_id']
-        
         owner_msg = (
             f"✳️ یک درخواست عضویت برای **{data['name']}** دریافت شد:\n\n"
-            f"کاربر **{user.first_name}** درخواست عضویت برای گروه شما ارسال کرده است.\n\n"
-            f"⚠️ شما می‌توانید از طریق گروه عضویت دوستانتان را تایید کنید اما پیشنهاد می‌کنیم "
-            f"با استفاده از دکمه زیر این‌کار را انجام دهید تا این گروه در بخش "
-            f"حساب کاربری (**{user.first_name}**) -> درس‌های من در دسترس باشد تا ما نیز بتوانیم "
-            f"عضویت کاربران در گروه‌ها را محدود کنیم و با این اقدام از حضور افراد سودجو در گروه‌ها پیشگیری کنیم🌹"
+            f"کاربر **{user.first_name}** درخواست عضویت ارسال کرده است.\n\n"
+            f"⚠️ پیشنهاد می‌کنیم از دکمه زیر برای تایید استفاده کنید تا امنیت گروه حفظ شود🌹"
         )
-        
         owner_kb = [[InlineKeyboardButton("✅ پذیرش", callback_data=f"acc_join:{user.id}:{ref_id}"),
                      InlineKeyboardButton("❌ رد", callback_data=f"rej_join:{user.id}:{ref_id}")]]
         
@@ -166,17 +159,12 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 
     elif action == "acc_join":
         target_id = int(parts[1])
-        await context.bot.send_message(chat_id=target_id, text=f"✅ درخواست عضویت شما در گروه **{data['name']}** تایید شد!")
-        await q.edit_message_text("✅ درخواست کاربر تایید شد.")
-
-    elif action == "rej_join":
-        target_id = int(parts[1])
-        await context.bot.send_message(chat_id=target_id, text="❌ متأسفانه درخواست عضویت شما رد شد.")
-        await q.edit_message_text("❌ درخواست رد شد.")
+        await context.bot.send_message(chat_id=target_id, text=f"✅ درخواست شما برای گروه **{data['name']}** تایید شد.")
+        await q.edit_message_text("✅ تایید شد.")
 
     elif action == "report_g":
         await context.bot.send_message(chat_id=ADMIN_ID, text=f"🚩 گزارش تخلف گروه: {data['name']}\nشناسه: {ref_id}")
-        await q.answer("✅ گزارش ارسال شد.", show_alert=True)
+        await q.answer("گزارش شد.", show_alert=True)
 
 # Conversation Handler
 group_conv = ConversationHandler(
