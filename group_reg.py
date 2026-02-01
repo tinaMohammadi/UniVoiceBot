@@ -144,12 +144,12 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 group_conv = ConversationHandler(
     entry_points=[
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
-        CallbackQueryHandler(show_rules, pattern="^g_add$") 
+        CallbackQueryHandler(show_rules, pattern="^g_add$") # برای وقتی که ربات از بیرون این دکمه را می‌بیند
     ],
     states={
         G_RULES: [
-            CallbackQueryHandler(show_rules, pattern="^g_add$"),
-            CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
+            # این همان خطی است که دکمه افزودن را "زنده" می‌کند:
+            CallbackQueryHandler(show_rules, pattern="^g_add$"), 
             CallbackQueryHandler(start, pattern="^start$")
         ],
         G_NAME: [
@@ -167,5 +167,5 @@ group_conv = ConversationHandler(
         CommandHandler("start", start)
     ],
     per_chat=True,
-    per_message=False # این تنظیم باعث می‌شود ربات حساسیت کمتری به پیام‌های قبلی داشته باشد
+    per_message=False
 )
