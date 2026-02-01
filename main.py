@@ -192,6 +192,117 @@ async def submit_form_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     await context.bot.send_message(chat_id=ADMIN_ID, text=f"📝 فرم جدید:\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     await q.edit_message_text("📨 فرم برای ادمین ارسال شد.")
 
+# ================= ADMIN ACTIONS =================
+async def admin_actions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    data = q.data
+
+    if data.startswith("admin_accept:"):
+        user_id = int(data.split(":")[1])
+        summary = q.message.text
+
+        msg = await context.bot.send_message(
+            chat_id=CHANNEL_ID,
+            text=summary,
+            parse_mode="Markdown"
+        )
+
+        post_reactions[msg.message_id] = {"likes": set(), "dislikes": set()}
+        await msg.edit_reply_markup(reply_markup=reaction_keyboard(msg.message_id))
+
+        await context.bot.send_message(chat_id=user_id, text="✅ فرم شما توسط ادمین تایید شد و در کانال منتشر شد 🙌")
+        await q.message.edit_text("✅ فرم تایید و ارسال شد به کانال.")
+
+    elif data.startswith("admin_reject:"):
+        user_id = int(data.split(":")[1])
+        await context.bot.send_message(chat_id=user_id, text="❌ فرم شما توسط ادمین رد شد.")
+        await q.message.edit_text("❌ فرم رد شد.")
+
+# ================= LIKE HANDLER =================
+async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    data = q.data
+    action, msg_id = data.split(":")
+    msg_id = int(msg_id)
+    user_id = q.from_user.id
+
+    reactions = post_reactions.setdefault(msg_id, {"likes": set(), "dislikes": set()})
+
+    if action == "like":
+        reactions["dislikes"].discard(user_id)
+        reactions["likes"].add(user_id)
+    elif action == "dislike":
+        reactions["likes"].discard(user_id)
+        reactions["dislikes"].add(user_id)
+
+    await q.message.edit_reply_markup(reply_markup=reaction_keyboard(msg_id))
+
+# ================= DELETE =================
+async def delete_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    await q.message.edit_text("❌ فرم حذف شد.", reply_markup=None)
+
+# ================= ANON CHAT =================
+anon_sessions = {}
+reply_sessions = {}
+
+async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    context.user_data["anon_mode"] = True
+    await q.message.reply_text("🕵️ پیام خودت رو وارد کن تا ناشناس برای ادمین ارسال شود:")
+
+async def receive_anon(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if context.user_data.get("anon_mode"):
+        user_id = update.message.from_user.id
+        msg_text = update.message.text
+        anon_sessions[user_id] = msg_text
+        keyboard = [[InlineKeyboardButton("✉️ پاسخ به کاربر", callback_data=f"admin_reply:{user_id}")]]
+        await context.bot.send_message(chat_id=ADMIN_ID,
+                                       text=f"📩 پیام ناشناس از کاربر:\n\n{msg_text}",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("✅ پیام شما به ادمین ارسال شد.")
+        context.user_data["anon_mode"] = False
+
+async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    user_id = int(q.data.split(":")[1])
+    reply_sessions[q.from_user.id] = user_id
+    await q.message.reply_text("✍️ پیام خود را برای کاربر وارد کنید:")
+
+async def admin_receive_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    admin_id = update.message.from_user.id
+    if admin_id in reply_sessions:
+        user_id = reply_sessions[admin_id]
+        msg = update.message.text
+        keyboard = [
+            [InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start")],
+            [InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]
+        ]
+        await context.bot.send_message(chat_id=user_id,
+                                       text=f"📩 پیام ادمین:\n\n{msg}",
+                                       reply_markup=InlineKeyboardMarkup(keyboard))
+        await update.message.reply_text("✅ پیام شما برای کاربر ارسال شد.")
+        del reply_sessions[admin_id]
+
+async def user_show_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    msg = q.data.split("user_show_msg:", 1)[1]
+    keyboard = [
+        [InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start")],
+        [InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]
+    ]
+    await q.message.edit_text(f"📩 پیام ادمین:\n\n{msg}", reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    await q.answer()
+    await start(update, context)
 # ================= MAIN =================
 def main():
     app = Application.builder().token(TOKEN).build()
