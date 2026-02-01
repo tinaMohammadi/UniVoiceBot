@@ -51,7 +51,7 @@ async def start_group_reg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.edit_text(
         "✨ **به بخش ثبت گروه کلاسی خوش آمدید**\n\nبرای ثبت مشخصات گروه خود روی دکمه زیر کلیک کنید:",
         reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-    return ConversationHandler.END # تغییر این خط
+    return G_RULES 
 
 async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -141,15 +141,17 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
         await q.message.edit_text("✅ منتشر شد.")
 
 # کانورزیشن با اصلاح دکمه افزودن و بازگشت
+# --- اصلاح نهایی و تضمینی برای زنده کردن دکمه افزودن ---
 group_conv = ConversationHandler(
     entry_points=[
+        # این دو خط دروازه‌های ورود هستند
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
-        CallbackQueryHandler(show_rules, pattern="^g_add$") # برای وقتی که ربات از بیرون این دکمه را می‌بیند
+        CallbackQueryHandler(show_rules, pattern="^g_add$")
     ],
     states={
+        # نکته طلایی: دکمه g_add را اینجا هم اضافه کردیم تا ربات در این مرحله "کر" نشود
         G_RULES: [
-            # این همان خطی است که دکمه افزودن را "زنده" می‌کند:
-            CallbackQueryHandler(show_rules, pattern="^g_add$"), 
+            CallbackQueryHandler(show_rules, pattern="^g_add$"),
             CallbackQueryHandler(start, pattern="^start$")
         ],
         G_NAME: [
