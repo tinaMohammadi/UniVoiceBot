@@ -143,13 +143,10 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 # کانورزیشن با اصلاح دکمه افزودن و بازگشت
 group_conv = ConversationHandler(
     entry_points=[
-        # وقتی از منوی اصلی روی "ثبت گروه کلاسی" کلیک می‌شود
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
-        # وقتی مستقیماً روی "افزودن گروه جدید" کلیک می‌شود
-        CallbackQueryHandler(show_rules, pattern="^g_add$")
+        CallbackQueryHandler(show_rules, pattern="^g_add$") 
     ],
     states={
-        # نکته مهم: هر دو تابع زیر را در یک استیت قرار دادیم تا همدیگر را پوشش دهند
         G_RULES: [
             CallbackQueryHandler(show_rules, pattern="^g_add$"),
             CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
@@ -159,7 +156,6 @@ group_conv = ConversationHandler(
             CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
             CallbackQueryHandler(start, pattern="^start$")
         ],
-        # بقیه استیت‌ها (G_PROF و ...) بدون تغییر بمانند
         G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
@@ -171,5 +167,5 @@ group_conv = ConversationHandler(
         CommandHandler("start", start)
     ],
     per_chat=True,
-    per_message=False
+    per_message=False # این تنظیم باعث می‌شود ربات حساسیت کمتری به پیام‌های قبلی داشته باشد
 )
