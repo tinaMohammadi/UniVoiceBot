@@ -56,6 +56,7 @@ async def show_rules(update: Update, context: ContextTypes.DEFAULT_TYPE):
     return G_NAME
 
 async def ask_g_name(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.callback_query.answer() # اضافه شده برای جلوگیری از باگ کلیک
     await update.callback_query.message.reply_text("📍 **گام اول:**\n\nنام درس را وارد کنید:")
     return G_PROF
 
@@ -128,7 +129,7 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
         owner_kb = [[InlineKeyboardButton("✅ پذیرش", callback_data=f"acc_join:{user.id}:{ref_id}")]]
         await context.bot.send_message(chat_id=data['owner_id'], text=f"✳️ درخواست عضویت برای **{data['name']}** از طرف {user.first_name}", reply_markup=InlineKeyboardMarkup(owner_kb))
 
-# کانورزیشن با الگوی اصلاح شده
+# کانورزیشن با الگوی اصلاح شده و حذف اخطار PTB
 group_conv = ConversationHandler(
     entry_points=[CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$")],
     states={
@@ -140,5 +141,6 @@ group_conv = ConversationHandler(
         G_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_time)],
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
-    fallbacks=[CallbackQueryHandler(start_group_reg, pattern="^start$")]
+    fallbacks=[CallbackQueryHandler(start_group_reg, pattern="^start$")],
+    per_message=False # این خط برای رفع اخطار لاگ شما اضافه شد
 )
