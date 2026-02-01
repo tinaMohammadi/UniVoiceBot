@@ -143,26 +143,35 @@ async def admin_group_decision(update: Update, context: ContextTypes.DEFAULT_TYP
 # کانورزیشن با اصلاح دکمه افزودن و بازگشت
 group_conv = ConversationHandler(
     entry_points=[
+        # نقطه ورود اول: کلیک روی منوی اصلی
         CallbackQueryHandler(start_group_reg, pattern="^start_group_reg$"),
-        CallbackQueryHandler(show_rules, pattern="^g_add$") # نقطه ورود مستقیم دکمه سبز
+        # نقطه ورود دوم: کلیک مستقیم روی "افزودن گروه جدید" (حل مشکل شما)
+        CallbackQueryHandler(show_rules, pattern="^g_add$") 
     ],
     states={
         G_RULES: [
+            # اگر در این مرحله بود و دوباره روی دکمه کلیک کرد
             CallbackQueryHandler(show_rules, pattern="^g_add$"),
-            CallbackQueryHandler(start, pattern="^start$") # دکمه بازگشت در این مرحله
+            CallbackQueryHandler(start, pattern="^start$")
         ],
         G_NAME: [
+            # پذیرش قوانین و رفتن به گام اول (نام درس)
             CallbackQueryHandler(ask_g_name, pattern="^g_accept$"),
-            CallbackQueryHandler(start, pattern="^start$") # دکمه انصراف در قوانین
+            CallbackQueryHandler(start, pattern="^start$")
         ],
-        G_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof)],
+        G_PROF: [
+            MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_prof),
+            # اجازه بازگشت حتی در هنگام تایپ
+            CallbackQueryHandler(start, pattern="^start$") 
+        ],
         G_ID: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_id)],
         G_DAYS: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_days)],
         G_TIME: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_time)],
         G_BOT_ADD: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_g_bot_add)],
     },
     fallbacks=[
-        CallbackQueryHandler(start, pattern="^start$"), # هندلر خروج اضطراری
+        # دکمه بازگشت در هر شرایطی کار کند
+        CallbackQueryHandler(start, pattern="^start$"),
         CommandHandler("start", start)
     ],
     per_chat=True,
