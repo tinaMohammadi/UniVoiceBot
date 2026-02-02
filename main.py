@@ -144,7 +144,7 @@ async def ask_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
-    await update.message.reply_text("📊 *تطبیق با جزوه:*\nتطبیق سوالات با جزوه (از ۱ تا ۵)؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    await update.message.reply_text("📊 * (از 1 تا 5) تطبیق با جزوه:*\nتطبیق سوالات با جزوه (از 1 تا 5)؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_MATCH
 
 async def ask_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,7 +164,7 @@ async def ask_semester(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ترم"] = update.message.text
-    await update.message.reply_text("⭐️ *نمره نهایی:*\nنمره‌ای که از این درس گرفتید (از ۲۰)؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    await update.message.reply_text("⭐️ *نمره نهایی:*\nنمره‌ای که از این درس گرفتید (از 20)؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_GRADE
 
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
