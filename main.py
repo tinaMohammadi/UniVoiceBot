@@ -151,6 +151,15 @@ async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ASK_PROJECT
 
+async def ask_attend(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["پروژه"] = update.message.text
+    await update.message.reply_text(
+        "🕒 *حضور و غیاب:*\n"
+        "استاد چقدر روی حضور و غیاب حساس بود؟ نمره داشت؟",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
+    return ASK_ATTEND
+    
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
     await update.message.reply_text(
