@@ -5,6 +5,18 @@ from telegram.ext import (
     ConversationHandler, filters, ContextTypes
 )
 
+# ================= SERVER FOR RENDER (KEEP ALIVE) =================
+# این تیکه کد باعث میشه Render ربات رو خاموش نکنه
+app_flask = Flask(__name__)
+
+@app_flask.route('/')
+def home():
+    return "Bot is Running!"
+
+def run_flask():
+    # رندر پورت رو به صورت متغیر محیطی میده
+    port = int(os.environ.get("PORT", 8080))
+    app_flask.run(host='0.0.0.0', port=port)
 # ================= CONFIG =================
 TOKEN = "8558196271:AAGsm4xqHnFeT7avPKcOVJvcy5pWrq5ZlN0"
 ADMIN_ID = 7997819976
@@ -219,7 +231,7 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ================= GLOBAL SESSIONS =================
 active_chats = {}  # user_id -> True (نشست‌های فعال چت)
 reply_sessions = {} # admin_id -> target_user_id
-
+post_reactions = {}
 # ================= ANON CHAT HANDLERS =================
 
 async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
