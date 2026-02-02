@@ -88,16 +88,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
 # تابع کمکی برای ایجاد دکمه انصراف در هر مرحله
+# تابع کمکی برای دکمه انصراف
 def cancel_markup():
     return InlineKeyboardMarkup([[InlineKeyboardButton("❌ انصراف و لغو فرم", callback_data="delete_form")]])
 
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = (
-        "✨ *شروع ثبت تجربه جدید*\n"
-        "────────────────\n"
-        "👨‍🏫 *نام استاد:* \n"
-        "لطفاً نام و نام خانوادگی استاد را وارد کنید:"
-    )
+    msg = "✨ *شروع ثبت تجربه جدید*\n" + "─" * 15 + "\n👨‍🏫 *نام استاد:* \nلطفاً نام استاد را وارد کنید:"
     if update.callback_query:
         await update.callback_query.answer()
         await update.callback_query.message.reply_text(msg, parse_mode="Markdown", reply_markup=cancel_markup())
@@ -108,92 +104,76 @@ async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["استاد"] = update.message.text
-    await update.message.reply_text(
-        "📚 *عنوان درس:*\n"
-        "نام درسی که با این استاد داشتید چیست؟",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("📚 *عنوان درس:*\nنام درس را وارد کنید:", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_COURSE
 
 async def ask_teaching(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["درس"] = update.message.text
-    await update.message.reply_text(
-        "🎓 *شیوه تدریس:*\n"
-        "نحوه بیان و تدریس استاد چطور بود؟ (خوب، ضعیف، مفهومی و...)",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("🎓 *شیوه تدریس:*\nنحوه تدریس استاد چطور بود؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_TEACHING
 
 async def ask_ethics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نوع تدریس"] = update.message.text
-    await update.message.reply_text(
-        "💬 *اخلاق و برخورد:*\n"
-        "برخورد استاد با دانشجوها چطور بود؟",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("💬 *اخلاق و برخورد:*\nبرخورد استاد با دانشجوها چطور بود؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_ETHICS
 
 async def ask_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["خصوصیات اخلاقی"] = update.message.text
-    await update.message.reply_text(
-        "📄 *وضعیت جزوه:*\n"
-        "آیا استاد جزوه میده؟ جزوه‌اش کامله؟",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("📄 *وضعیت جزوه:*\nآیا استاد جزوه کامل می‌دهد؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_NOTES
 
 async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["جزوه"] = update.message.text
-    await update.message.reply_text(
-        "🧪 *پروژه و کار عملی:*\n"
-        "آیا این درس پروژه داشت؟ نمره‌دهی پروژه چطور بود؟",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("🧪 *پروژه و کار عملی:*\nآیا این درس پروژه داشت؟ نمره‌دهی چطور بود؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_PROJECT
 
 async def ask_attend(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پروژه"] = update.message.text
-    await update.message.reply_text(
-        "🕒 *حضور و غیاب:*\n"
-        "استاد چقدر روی حضور و غیاب حساس بود؟ نمره داشت؟",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("🕒 *حضور و غیاب:*\nوضعیت حضور غیاب و حساسیت استاد؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_ATTEND
-    
+
+async def ask_midterm(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["حضور و غیاب"] = update.message.text
+    await update.message.reply_text("📝 *امتحان میان‌ترم:*\nامتحان میان‌ترم چطور بود؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    return ASK_MIDTERM
+
+async def ask_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["میان‌ترم"] = update.message.text
+    await update.message.reply_text("📘 *امتحان پایان‌ترم:*\nسطح سوالات پایان‌ترم؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    return ASK_FINAL
+
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
-    await update.message.reply_text(
-        "📊 *تطبیق سوالات با جزوه:*\n"
-        "سوالات امتحانی چقدر شبیه جزوه بود؟ (از ۱ تا ۵ امتیاز بدید)",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("📊 *تطبیق با جزوه:*\nتطبیق سوالات با جزوه (از ۱ تا ۵)؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_MATCH
+
+async def ask_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["تطبیق سوالات"] = update.message.text
+    await update.message.reply_text("📞 *راه ارتباطی:*\nنحوه پاسخگویی و ارتباط با استاد؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    return ASK_CONTACT
+
+async def ask_conclusion(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["راه ارتباطی"] = update.message.text
+    await update.message.reply_text("📌 *نتیجه‌گیری:*\nدر کل این استاد را پیشنهاد می‌کنید؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    return ASK_CONCLUSION
+
+async def ask_semester(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["نتیجه‌گیری"] = update.message.text
+    await update.message.reply_text("📅 *ترم تحصیلی:*\nچه ترمی با این استاد داشتید؟", parse_mode="Markdown", reply_markup=cancel_markup())
+    return ASK_SEMESTER
 
 async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ترم"] = update.message.text
-    await update.message.reply_text(
-        "⭐️ *نمره نهایی:*\n"
-        "در نهایت چه نمره‌ای از این درس گرفتید؟ (از ۲۰)",
-        parse_mode="Markdown", reply_markup=cancel_markup()
-    )
+    await update.message.reply_text("⭐️ *نمره نهایی:*\nنمره‌ای که از این درس گرفتید (از ۲۰)؟", parse_mode="Markdown", reply_markup=cancel_markup())
     return ASK_GRADE
 
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نمره"] = update.message.text
     summary = build_form_text(context.user_data)
-    
-    keyboard = [
-        [InlineKeyboardButton("✅ ارسال جهت بررسی", callback_data="submit_form")],
-        [InlineKeyboardButton("🗑 حذف و شروع مجدد", callback_data="delete_form")]
-    ]
-    
-    await update.message.reply_text(
-        "🌈 *فرم شما آماده است!*\n"
-        "لطفاً پیش‌نمایش را چک کنید و در صورت تایید دکمه ارسال را بزنید:\n\n"
-        f"```{summary}```", 
-        reply_markup=InlineKeyboardMarkup(keyboard), 
-        parse_mode="MarkdownV2" # برای نمایش بهتر بلوک کد
-    )
+    keyboard = [[InlineKeyboardButton("✅ ارسال نهایی", callback_data="submit_form")],
+                [InlineKeyboardButton("🗑 لغو و حذف", callback_data="delete_form")]]
+    # استفاده از Markdown معمولی برای جلوگیری از ارور کاراکترهای خاص
+    await update.message.reply_text(f"🌈 *پیش‌نمایش فرم شما:*\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return ConversationHandler.END
 # ================= SUBMIT & ADMIN =================
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
