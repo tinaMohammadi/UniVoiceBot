@@ -175,6 +175,13 @@ async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # استفاده از Markdown معمولی برای جلوگیری از ارور کاراکترهای خاص
     await update.message.reply_text(f"🌈 *پیش‌نمایش فرم شما:*\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
     return ConversationHandler.END
+
+async def delete_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer("🗑 فرم حذف شد.")
+    await query.message.edit_text("❌ عملیات ثبت نظر لغو شد. برای شروع مجدد /start را بزنید.")
+    context.user_data.clear()
+    return ConversationHandler.END
 # ================= SUBMIT & ADMIN =================
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -321,6 +328,7 @@ async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.message.reply_text(f"✍️ در حال پاسخ به `{target_id}` هستید. پیام خود را بفرستید:")
 
 # ================= MAIN =================
+# ================= MAIN =================
 def main():
     threading.Thread(target=run_flask, daemon=True).start()
     app = Application.builder().token(TOKEN).build()
@@ -360,4 +368,4 @@ def main():
     app.run_polling()
 
 if __name__ == "__main__":
-    main()
+    main()    main()
