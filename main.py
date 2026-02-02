@@ -216,62 +216,100 @@ async def handle_reaction(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.message.edit_reply_markup(reply_markup=reaction_keyboard(msg_id))
 
 # ================= ANON CHAT =================
+# ================= GLOBAL SESSIONS =================
+active_chats = {}  # user_id -> True (نشست‌های فعال چت)
+reply_sessions = {} # admin_id -> target_user_id
+
+# ================= ANON CHAT HANDLERS =================
+
 async def anon_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
-    context.user_data["anon_mode"] = True
-    await update.callback_query.message.reply_text("🕵️ پیام خود را بنویسید تا به صورت ناشناس برای ادمین ارسال شود:")
+    user_id = update.callback_query.from_user.id
+    active_chats[user_id] = True  # شروع نشست چت
+    
+    keyboard = [[InlineKeyboardButton("❌ پایان چت ناشناس", callback_data="end_chat")]]
+    await update.callback_query.message.reply_text(
+        "🕵️ وارد حالت ناشناس شدی.\nهر پیامی بفرستی برای ادمین ارسال می‌شه. برای خروج دکمه زیر رو بزن:",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+async def end_chat(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    user_id = query.from_user.id
+    
+    if user_id in active_chats:
+        del active_chats[user_id]
+    
+    # اگر ادمین چت را بست
+    if user_id == ADMIN_ID and user_id in reply_sessions:
+        target_id = reply_sessions[user_id]
+        if target_id in active_chats: del active_chats[target_id]
+        await context.bot.send_message(chat_id=target_id, text="🔚 ادمین به این گفتگو پایان داد.")
+        del reply_sessions[user_id]
+
+    await query.message.edit_text("✅ چت پایان یافت. برای شروع مجدد /start را بزنید.")
 
 async def receive_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     user_id = user.id
-    username = f"@{user.username}" if user.username else "بدون یوزرنیم"
-    full_name = user.full_name
 
-    # ادمین در حال پاسخ دادن است
+    # ۱. اگر ادمین پیامی بفرستد و در حال پاسخ به کسی باشد
     if user_id == ADMIN_ID and user_id in reply_sessions:
         target_id = reply_sessions[user_id]
+        keyboard = [[InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]]
         try:
-            await context.bot.send_message(chat_id=target_id, text=f"📩 پیام ادمین:\n\n{update.message.text}")
-            await update.message.reply_text("✅ پاسخ شما ارسال شد.")
-        except Exception as e:
-            await update.message.reply_text(f"❌ خطا در ارسال: کاربر ربات را بلاک کرده است.")
-        del reply_sessions[user_id]
+            await context.bot.send_message(
+                chat_id=target_id, 
+                text=f"📩 **پاسخ ادمین:**\n\n{update.message.text}",
+                reply_markup=InlineKeyboardMarkup(keyboard),
+                parse_mode="Markdown"
+            )
+            await update.message.reply_text("✅ ارسال شد. (منتظر پیام کاربر باشید یا با /start چت را ببندید)")
+        except:
+            await update.message.reply_text("❌ خطا: کاربر ربات را بلاک کرده است.")
         return
 
-    # کاربر عادی در حال ارسال پیام ناشناس (که برای تو شناسنامه داره!)
-    if context.user_data.get("anon_mode"):
-        keyboard = [[InlineKeyboardButton("✉️ پاسخ به کاربر", callback_data=f"reply_to:{user_id}")]]
+    # ۲. اگر کاربر عادی در حالت چت فعال باشد
+    if active_chats.get(user_id):
+        username = f"@{user.username}" if user.username else "بدون یوزرنیم"
         
-        # اطلاعاتی که فقط برای تو نمایش داده میشه:
-        admin_text = (
-            f"🕵️ **پیام ناشناس جدید**\n"
+        keyboard = [
+            [InlineKeyboardButton("✉️ پاسخ به این کاربر", callback_data=f"reply_to:{user_id}")],
+            [InlineKeyboardButton("❌ قطع دسترسی کاربر", callback_data="end_chat")]
+        ]
+        
+        admin_info = (
+            f"🕵️ **پیام از:** {user.full_name}\n"
+            f"🆔 `{user_id}` | {username}\n"
             f"────────────────\n"
-            f"👤 **فرستنده:** {full_name}\n"
-            f"🆔 **آیدی عددی:** `{user_id}`\n"
-            f"🔗 **یوزرنیم:** {username}\n"
-            f"────────────────\n"
-            f"📝 **متن پیام:**\n\n{update.message.text}"
+            f"{update.message.text}"
         )
         
-        await context.bot.send_message(chat_id=ADMIN_ID, text=admin_text, reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
-        await update.message.reply_text("✅ پیام شما به صورت ناشناس به ادمین ارسال شد.")
-        context.user_data["anon_mode"] = False
+        await context.bot.send_message(
+            chat_id=ADMIN_ID, 
+            text=admin_info, 
+            reply_markup=InlineKeyboardMarkup(keyboard),
+            parse_mode="Markdown"
+        )
+        
+        user_keyboard = [[InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]]
+        await update.message.reply_text("✅ پیامت ارسال شد.", reply_markup=InlineKeyboardMarkup(user_keyboard))
 
 async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
     target_id = int(update.callback_query.data.split(":")[1])
     reply_sessions[ADMIN_ID] = target_id
-    await update.callback_query.message.reply_text("✍️ پاسخ خود را بنویسید:")
+    await update.callback_query.message.reply_text(f"✍️ در حال پاسخ به `{target_id}` هستید. پیام خود را بفرستید:")
 
-# ================= MAIN =================
+# ================= MAIN UPDATED =================
+
 def main():
     app = Application.builder().token(TOKEN).build()
 
+    # ConversationHandler برای فرم (بدون تغییر نسبت به قبل)
     conv_handler = ConversationHandler(
-        entry_points=[
-            CallbackQueryHandler(start_form, pattern="^start_form$"),
-            CommandHandler("form", start_form)
-        ],
+        entry_points=[CallbackQueryHandler(start_form, pattern="^start_form$"), CommandHandler("form", start_form)],
         states={
             ASK_PROF: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_course)],
             ASK_COURSE: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_teaching)],
@@ -288,10 +326,7 @@ def main():
             ASK_SEMESTER: [MessageHandler(filters.TEXT & ~filters.COMMAND, ask_grade)],
             ASK_GRADE: [MessageHandler(filters.TEXT & ~filters.COMMAND, finish_form)],
         },
-        fallbacks=[
-            CallbackQueryHandler(delete_form, pattern="^delete_form$"),
-            CommandHandler("cancel", delete_form)
-        ]
+        fallbacks=[CallbackQueryHandler(delete_form, pattern="^delete_form$")]
     )
 
     app.add_handler(CommandHandler("start", start))
@@ -300,12 +335,14 @@ def main():
     app.add_handler(CallbackQueryHandler(delete_form, pattern="^delete_form$"))
     app.add_handler(CallbackQueryHandler(admin_actions, pattern="^admin_(accept|reject):"))
     app.add_handler(CallbackQueryHandler(handle_reaction, pattern="^(like|dislike):"))
+    
+    # هندلرهای جدید چت ناشناس
     app.add_handler(CallbackQueryHandler(anon_start, pattern="^anon_start$"))
     app.add_handler(CallbackQueryHandler(admin_reply_start, pattern="^reply_to:"))
+    app.add_handler(CallbackQueryHandler(end_chat, pattern="^end_chat$"))
+    
+    # این هندلر باید آخرین هندلر پیام باشد
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, receive_msg))
 
-    print("✅ ربات UniEcho با موفقیت فعال شد.")
+    print("✅ ربات با سیستم چت مداوم فعال شد.")
     app.run_polling()
-
-if __name__ == "__main__":
-    main()
