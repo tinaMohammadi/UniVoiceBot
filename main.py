@@ -142,6 +142,15 @@ async def ask_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     return ASK_NOTES
 
+async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    context.user_data["جزوه"] = update.message.text
+    await update.message.reply_text(
+        "🧪 *پروژه و کار عملی:*\n"
+        "آیا این درس پروژه داشت؟ نمره‌دهی پروژه چطور بود؟",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
+    return ASK_PROJECT
+
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
     await update.message.reply_text(
