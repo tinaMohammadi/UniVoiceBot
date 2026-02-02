@@ -87,101 +87,96 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.callback_query.answer()
         await update.callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
 
+# تابع کمکی برای ایجاد دکمه انصراف در هر مرحله
+def cancel_markup():
+    return InlineKeyboardMarkup([[InlineKeyboardButton("❌ انصراف و لغو فرم", callback_data="delete_form")]])
+
 async def start_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "✨ *شروع ثبت تجربه جدید*\n"
+        "────────────────\n"
+        "👨‍🏫 *نام استاد:* \n"
+        "لطفاً نام و نام خانوادگی استاد را وارد کنید:"
+    )
     if update.callback_query:
         await update.callback_query.answer()
-        await update.callback_query.message.reply_text("*👨‍🏫 استاد:*\n\nنام استاد را وارد کنید:", parse_mode="Markdown")
+        await update.callback_query.message.reply_text(msg, parse_mode="Markdown", reply_markup=cancel_markup())
     else:
-        await update.message.reply_text("*👨‍🏫 استاد:*\n\nنام استاد را وارد کنید:", parse_mode="Markdown")
+        await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=cancel_markup())
     context.user_data.clear()
     return ASK_PROF
 
-async def delete_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    if query:
-        await query.answer("فرم حذف شد")
-        await query.message.edit_text("❌ عملیات لغو شد. فرم شما پاک گردید.")
-    else:
-        await update.message.reply_text("❌ عملیات لغو شد.")
-    context.user_data.clear()
-    return ConversationHandler.END
-
-# Logic for asking questions
 async def ask_course(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["استاد"] = update.message.text
-    await update.message.reply_text("*📚 درس:\n\n نام درس را وارد کنید :*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "📚 *عنوان درس:*\n"
+        "نام درسی که با این استاد داشتید چیست؟",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_COURSE
 
 async def ask_teaching(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["درس"] = update.message.text
-    await update.message.reply_text("*🎓 نوع تدریس:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "🎓 *شیوه تدریس:*\n"
+        "نحوه بیان و تدریس استاد چطور بود؟ (خوب، ضعیف، مفهومی و...)",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_TEACHING
 
 async def ask_ethics(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نوع تدریس"] = update.message.text
-    await update.message.reply_text("*💬 خصوصیات اخلاقی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "💬 *اخلاق و برخورد:*\n"
+        "برخورد استاد با دانشجوها چطور بود؟",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_ETHICS
 
 async def ask_notes(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["خصوصیات اخلاقی"] = update.message.text
-    await update.message.reply_text("*📄 جزوه:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "📄 *وضعیت جزوه:*\n"
+        "آیا استاد جزوه میده؟ جزوه‌اش کامله؟",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_NOTES
-
-async def ask_project(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["جزوه"] = update.message.text
-    await update.message.reply_text("*🧪 پروژه:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_PROJECT
-
-async def ask_attend(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["پروژه"] = update.message.text
-    await update.message.reply_text("*🕒 حضور و غیاب:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_ATTEND
-
-async def ask_midterm(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["حضور و غیاب"] = update.message.text
-    await update.message.reply_text("*📝 میان‌ترم:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_MIDTERM
-
-async def ask_final(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["میان‌ترم"] = update.message.text
-    await update.message.reply_text("*📘 پایان‌ترم:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_FINAL
 
 async def ask_match(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["پایان‌ترم"] = update.message.text
-    await update.message.reply_text("*📊 میزان تطبیق سوالات با جزوه (از 5):\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "📊 *تطبیق سوالات با جزوه:*\n"
+        "سوالات امتحانی چقدر شبیه جزوه بود؟ (از ۱ تا ۵ امتیاز بدید)",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_MATCH
-
-async def ask_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["تطبیق سوالات"] = update.message.text
-    await update.message.reply_text("*📞 راه ارتباطی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_CONTACT
-
-async def ask_conclusion(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["راه ارتباطی"] = update.message.text
-    await update.message.reply_text("*📌 نتیجه‌گیری:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_CONCLUSION
-
-async def ask_semester(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    context.user_data["نتیجه‌گیری"] = update.message.text
-    await update.message.reply_text("*📅 ترمی که با استاد داشتی:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
-    return ASK_SEMESTER
 
 async def ask_grade(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["ترم"] = update.message.text
-    await update.message.reply_text("*⭐️ نمره از ۲۰:\n\n پاسخ خود را وارد کنید:*", parse_mode="Markdown")
+    await update.message.reply_text(
+        "⭐️ *نمره نهایی:*\n"
+        "در نهایت چه نمره‌ای از این درس گرفتید؟ (از ۲۰)",
+        parse_mode="Markdown", reply_markup=cancel_markup()
+    )
     return ASK_GRADE
 
 async def finish_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     context.user_data["نمره"] = update.message.text
     summary = build_form_text(context.user_data)
+    
     keyboard = [
-        [InlineKeyboardButton("✅ ارسال نهایی", callback_data="submit_form"),
-         InlineKeyboardButton("❌ حذف و انصراف", callback_data="delete_form")]
+        [InlineKeyboardButton("✅ ارسال جهت بررسی", callback_data="submit_form")],
+        [InlineKeyboardButton("🗑 حذف و شروع مجدد", callback_data="delete_form")]
     ]
-    await update.message.reply_text(f"📋 *پیش‌نمایش فرم شما:*\n\n{summary}", reply_markup=InlineKeyboardMarkup(keyboard), parse_mode="Markdown")
+    
+    await update.message.reply_text(
+        "🌈 *فرم شما آماده است!*\n"
+        "لطفاً پیش‌نمایش را چک کنید و در صورت تایید دکمه ارسال را بزنید:\n\n"
+        f"```{summary}```", 
+        reply_markup=InlineKeyboardMarkup(keyboard), 
+        parse_mode="MarkdownV2" # برای نمایش بهتر بلوک کد
+    )
     return ConversationHandler.END
-
 # ================= SUBMIT & ADMIN =================
 async def submit_form(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -270,44 +265,56 @@ async def receive_msg(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ۱. اگر ادمین پیامی بفرستد و در حال پاسخ به کسی باشد
     if user_id == ADMIN_ID and user_id in reply_sessions:
         target_id = reply_sessions[user_id]
-        keyboard = [[InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]]
+        
+        # کیبورد برای کاربر (شامل دکمه پاسخ و پایان)
+        user_keyboard = [
+            [InlineKeyboardButton("✉️ پاسخ به ادمین", callback_data="anon_start")], # بازنشانی حالت چت اگر قطع شده باشد
+            [InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]
+        ]
+        
         try:
             await context.bot.send_message(
                 chat_id=target_id, 
-                text=f"📩 **پاسخ ادمین:**\n\n{update.message.text}",
-                reply_markup=InlineKeyboardMarkup(keyboard),
+                text=f"📩 **پیام جدید از طرف ادمین:**\n\n{update.message.text}",
+                reply_markup=InlineKeyboardMarkup(user_keyboard),
                 parse_mode="Markdown"
             )
-            await update.message.reply_text("✅ ارسال شد. (منتظر پیام کاربر باشید یا با /start چت را ببندید)")
+            await update.message.reply_text(f"✅ پیام شما به کاربر `{target_id}` تحویل داده شد.")
         except:
-            await update.message.reply_text("❌ خطا: کاربر ربات را بلاک کرده است.")
+            await update.message.reply_text("❌ خطا: امکان ارسال پیام به کاربر وجود ندارد (شاید ربات را بلاک کرده باشد).")
         return
 
     # ۲. اگر کاربر عادی در حالت چت فعال باشد
     if active_chats.get(user_id):
         username = f"@{user.username}" if user.username else "بدون یوزرنیم"
         
-        keyboard = [
+        # کیبورد برای ادمین
+        admin_keyboard = [
             [InlineKeyboardButton("✉️ پاسخ به این کاربر", callback_data=f"reply_to:{user_id}")],
             [InlineKeyboardButton("❌ قطع دسترسی کاربر", callback_data="end_chat")]
         ]
         
         admin_info = (
-            f"🕵️ **پیام از:** {user.full_name}\n"
+            f"🕵️ **پیام ناشناس جدید**\n"
+            f"👤 **فرستنده:** {user.full_name}\n"
             f"🆔 `{user_id}` | {username}\n"
             f"────────────────\n"
-            f"{update.message.text}"
+            f"📝 **متن:** {update.message.text}"
         )
         
         await context.bot.send_message(
             chat_id=ADMIN_ID, 
             text=admin_info, 
-            reply_markup=InlineKeyboardMarkup(keyboard),
+            reply_markup=InlineKeyboardMarkup(admin_keyboard),
             parse_mode="Markdown"
         )
         
-        user_keyboard = [[InlineKeyboardButton("❌ پایان چت", callback_data="end_chat")]]
-        await update.message.reply_text("✅ پیامت ارسال شد.", reply_markup=InlineKeyboardMarkup(user_keyboard))
+        # تاییدیه برای کاربر (با دکمه پایان برای اطمینان)
+        user_status_keyboard = [[InlineKeyboardButton("❌ پایان گفتگو", callback_data="end_chat")]]
+        await update.message.reply_text(
+            "🚀 پیام شما با موفقیت به ادمین رسید.\nشما می‌توانید پیام‌های بعدی خود را همینجا بفرستید یا چت را تمام کنید:",
+            reply_markup=InlineKeyboardMarkup(user_status_keyboard)
+        )
 
 async def admin_reply_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.callback_query.answer()
