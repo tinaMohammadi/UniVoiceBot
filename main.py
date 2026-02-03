@@ -60,6 +60,20 @@ def build_form_text(data):
     for title, key in FORM_QUESTIONS:
         value = data.get(key, "-")
         lines.append(f"*{title}:*\n{value}\n")
+
+    lines.append("──────────────")
+    lines.append("👍 *موافق این نظر هستم*")
+    lines.append("👎 *مخالف این نظر هستم*")
+    lines.append("\n⚠️ *مهم: قبل از تصمیم‌گیری بخوانید*")
+    lines.append(f"\n🆔 {CHANNEL_TAG}")
+    return "\n".join(lines)
+
+
+def build_form_text(data):
+    lines = []
+    for title, key in FORM_QUESTIONS:
+        value = data.get(key, "-")
+        lines.append(f"*{title}:*\n{value}\n")
     lines.extend(["──────────────", f"🆔 {CHANNEL_TAG}"])
     return "\n".join(lines)
 
